@@ -2,6 +2,40 @@
 
 AI-powered, self-hosted job hunting application. Upload your resume, let AI find and rank jobs across 8 providers, track applications with a Kanban board, discover networking contacts, and build tailored resumes — all from one place.
 
+## Screenshots
+
+### Dashboard — AI Autopilot
+One click to analyze resume, extract preferences, and search across all providers.
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Job Search — 8 Providers, Smart Filtering
+All jobs from every search in one place. Filter by company, provider, remote, saved status.
+![Job Search](docs/screenshots/jobs.png)
+
+### Application Tracker — Kanban Board
+Track applications through Saved → Applied → Interviewing → Offered → Rejected.
+![Tracker](docs/screenshots/tracker.png)
+
+### Resume — AI Analysis & Scoring
+Upload PDF/DOCX, get scored across formatting, content, keywords, and ATS compatibility.
+![Resume](docs/screenshots/resume.png)
+
+### Resume Builder — Rich Text Editor + AI Tailoring
+Build resumes with a rich text editor. Tailor for specific jobs with AI. Export to PDF.
+![Builder](docs/screenshots/builder.png)
+
+### Job Map — Dark Theme Geographic View
+See all openings on a map with company logos. Click to save, apply, or explore.
+![Map](docs/screenshots/map.png)
+
+### Preferences — AI Auto-Fill + Questionnaire
+Multi-select experience level, work arrangement, company size. AI extracts from resume.
+![Preferences](docs/screenshots/preferences.png)
+
+### Settings — API Keys + Data Management
+Configure AI providers, job search APIs, networking tools. Delete data granularly.
+![Settings](docs/screenshots/settings.png)
+
 ## Features
 
 ### AI-First Job Search
@@ -143,10 +177,6 @@ src/
 | RemoteOK | Official API | No | Remote jobs |
 | Jobicy | Official API | No | Remote jobs |
 | HackerNews | Algolia API | No | Tech jobs |
-
-## Screenshots
-
-*Coming soon*
 
 ## Contributing
 

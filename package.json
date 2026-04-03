@@ -18,6 +18,7 @@
   "license": "ISC",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
+    "@mendable/firecrawl-js": "^4.18.1",
     "@tiptap/extension-link": "^3.21.0",
     "@tiptap/extension-placeholder": "^3.21.0",
     "@tiptap/extension-text-align": "^3.21.0",
@@ -35,6 +36,7 @@
     "lucide-react": "^1.7.0",
     "mammoth": "^1.12.0",
     "next": "^16.2.1",
+    "node-cron": "^4.2.1",
     "openai": "^6.33.0",
     "pdf-parse": "^1.1.1",
     "puppeteer": "^24.40.0",
@@ -52,6 +54,7 @@
     "@types/dompurify": "^3.0.5",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^25.5.0",
+    "@types/node-cron": "^3.0.11",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/uuid": "^10.0.0",

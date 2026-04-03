@@ -12,6 +12,7 @@ const SENSITIVE_KEYS = [
   "happenstance_api_key",
   "logodev_api_key",
   "hunter_api_key",
+  "firecrawl_api_key",
 ];
 
 // Map setting keys to env var names
@@ -24,6 +25,8 @@ const ENV_VAR_MAP: Record<string, string> = {
   happenstance_api_key: "HAPPENSTANCE_API_KEY",
   logodev_api_key: "LOGODEV_API_KEY",
   hunter_api_key: "HUNTER_API_KEY",
+  firecrawl_api_url: "FIRECRAWL_API_URL",
+  firecrawl_api_key: "FIRECRAWL_API_KEY",
 };
 
 export async function GET() {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
+import { resetGamification } from "@/lib/gamification";
 import fs from "fs";
 import path from "path";
 
@@ -53,6 +54,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, message: "All cached company data cleared" });
       }
 
+      case "gamification": {
+        resetGamification();
+        return NextResponse.json({ success: true, message: "All gamification data reset" });
+      }
+
       case "everything": {
         // Nuclear option — delete all data
         db.delete(schema.outreachTracking).run();
@@ -65,6 +71,7 @@ export async function POST(request: NextRequest) {
         db.delete(schema.jobPreferences).run();
         db.delete(schema.companyEnrichment).run();
         db.delete(schema.geocodeCache).run();
+        resetGamification();
         // Don't delete settings (API keys)
         // Clean uploads
         const uploadsDir2 = path.join(process.cwd(), "uploads");

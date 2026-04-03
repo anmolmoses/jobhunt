@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { analyzeResume } from "@/lib/resume/analyzer";
+import { recordAction } from "@/lib/gamification";
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,6 +48,8 @@ export async function POST(request: NextRequest) {
       })
       .returning()
       .get();
+
+    try { recordAction("resume_analyze"); } catch (e) { console.error("Gamification error:", e); }
 
     return NextResponse.json({
       ...result,

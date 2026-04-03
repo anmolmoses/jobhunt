@@ -260,7 +260,7 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
                       {companyData.salary.min && companyData.salary.max && (
                         <div className="relative h-2 rounded-full bg-muted overflow-hidden">
                           <div
-                            className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-yellow-400 via-green-500 to-blue-500"
+                            className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-foreground/30 via-foreground/60 to-foreground/90"
                             style={{ width: "100%" }}
                           />
                           {companyData.salary.median && (

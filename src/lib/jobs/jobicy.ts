@@ -1,5 +1,9 @@
 import type { JobSearchProvider, JobSearchParams, NormalizedJob } from "@/types/jobs";
 
+const DATE_MAP: Record<string, number> = {
+  "1d": 1, "3d": 3, "7d": 7, "14d": 14, "30d": 30,
+};
+
 export class JobicyProvider implements JobSearchProvider {
   readonly name = "jobicy" as const;
 
@@ -21,7 +25,15 @@ export class JobicyProvider implements JobSearchProvider {
       if (!res.ok) throw new Error(`Jobicy API error: ${res.status}`);
 
       const data = await res.json();
-      const jobs = data.jobs || [];
+      const allJobs = data.jobs || [];
+
+      // Filter by date
+      const maxAgeDays = DATE_MAP[params.datePosted || "30d"] || 30;
+      const dateCutoff = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000);
+      const jobs = allJobs.filter((job: Record<string, unknown>) => {
+        const pubDate = job.pubDate ? new Date(job.pubDate as string) : null;
+        return !pubDate || pubDate >= dateCutoff;
+      });
 
       return jobs.map((job: Record<string, unknown>): NormalizedJob => ({
         externalId: `jobicy-${job.id || Math.random().toString(36).slice(2)}`,

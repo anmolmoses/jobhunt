@@ -39,12 +39,12 @@ interface OutreachRecord {
 }
 
 const STATUS_OPTIONS = [
-  { value: "planned", label: "Planned", color: "bg-gray-100 text-gray-800" },
-  { value: "sent", label: "Sent", color: "bg-blue-100 text-blue-800" },
-  { value: "replied", label: "Replied", color: "bg-green-100 text-green-800" },
-  { value: "no_reply", label: "No Reply", color: "bg-yellow-100 text-yellow-800" },
-  { value: "meeting_scheduled", label: "Meeting Scheduled", color: "bg-purple-100 text-purple-800" },
-  { value: "declined", label: "Declined", color: "bg-red-100 text-red-800" },
+  { value: "planned", label: "Planned", color: "bg-muted text-muted-foreground" },
+  { value: "sent", label: "Sent", color: "bg-foreground/10 text-foreground" },
+  { value: "replied", label: "Replied", color: "bg-foreground/15 text-foreground" },
+  { value: "no_reply", label: "No Reply", color: "bg-foreground/5 text-muted-foreground" },
+  { value: "meeting_scheduled", label: "Meeting Scheduled", color: "bg-foreground/20 text-foreground" },
+  { value: "declined", label: "Declined", color: "bg-foreground/5 text-muted-foreground" },
 ];
 
 const CHANNEL_ICONS: Record<string, typeof Link2> = {
@@ -153,19 +153,19 @@ export default function NetworkingPage() {
         </Card>
         <Card>
           <CardContent className="pt-4 pb-4">
-            <p className="text-2xl font-bold text-blue-600">{statusCounts["sent"] || 0}</p>
+            <p className="text-2xl font-bold">{statusCounts["sent"] || 0}</p>
             <p className="text-xs text-muted-foreground">Messages Sent</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-4">
-            <p className="text-2xl font-bold text-green-600">{statusCounts["replied"] || 0}</p>
+            <p className="text-2xl font-bold">{statusCounts["replied"] || 0}</p>
             <p className="text-xs text-muted-foreground">Replies Received</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-4">
-            <p className="text-2xl font-bold text-purple-600">{statusCounts["meeting_scheduled"] || 0}</p>
+            <p className="text-2xl font-bold">{statusCounts["meeting_scheduled"] || 0}</p>
             <p className="text-xs text-muted-foreground">Meetings Scheduled</p>
           </CardContent>
         </Card>
@@ -251,7 +251,7 @@ export default function NetworkingPage() {
                             </span>
                           )}
                           {record.repliedAt && (
-                            <span className="flex items-center gap-1 text-green-600">
+                            <span className="flex items-center gap-1 text-foreground">
                               Replied {new Date(record.repliedAt).toLocaleDateString()}
                             </span>
                           )}

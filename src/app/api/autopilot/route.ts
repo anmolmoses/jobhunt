@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, schema } from "@/db";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
+import { recordAction } from "@/lib/gamification";
 import { analyzeResume } from "@/lib/resume/analyzer";
 import { createAIProvider } from "@/lib/ai/provider";
 import { searchJobs } from "@/lib/jobs/orchestrator";
@@ -8,6 +9,16 @@ import {
   AUTO_EXTRACT_PREFERENCES_SYSTEM_PROMPT,
   AUTO_EXTRACT_PREFERENCES_USER_PROMPT,
 } from "@/lib/ai/prompts";
+
+function getSettingValue(key: string): string | null {
+  const row = db.select().from(schema.settings).where(eq(schema.settings.key, key)).get();
+  return row?.value ?? null;
+}
+
+function safeParse<T>(s: string | null, fallback: T): T {
+  if (!s) return fallback;
+  try { return JSON.parse(s) as T; } catch { return fallback; }
+}
 
 interface AutopilotStep {
   step: string;
@@ -145,15 +156,30 @@ export async function POST() {
       steps.push({ step: "preferences", status: "failed", message: `Preference extraction failed: ${e instanceof Error ? e.message : "unknown"}` });
     }
 
-    // Step 4: Search for jobs using AI-generated queries
-    if (searchQueries.length === 0) {
+    // Step 4: Load search config and build queries
+    const customQueries = safeParse<string[]>(getSettingValue("search_custom_queries"), []);
+    const useCustomOnly = getSettingValue("search_use_custom_queries_only") === "true";
+    const datePosted = (getSettingValue("search_date_posted") || "7d") as "1d" | "3d" | "7d" | "14d" | "30d";
+    const resultsPerPage = parseInt(getSettingValue("search_results_per_page") || "25", 10);
+    const maxQueries = parseInt(getSettingValue("search_max_queries") || "3", 10);
+    const enabledProviders = safeParse<string[] | null>(getSettingValue("search_enabled_providers"), null);
+
+    // Build final query list: custom queries first, then AI-generated
+    let finalQueries: string[];
+    if (useCustomOnly && customQueries.length > 0) {
+      finalQueries = customQueries;
+    } else if (customQueries.length > 0) {
+      finalQueries = [...customQueries, ...searchQueries.filter((q) => !customQueries.includes(q))];
+    } else if (searchQueries.length > 0) {
+      finalQueries = searchQueries;
+    } else {
       // Fallback: use desired roles from preferences
       const prefs = db.select().from(schema.jobPreferences).limit(1).get();
       if (prefs) {
         const roles = JSON.parse(prefs.desiredRoles);
-        searchQueries = roles.length > 0 ? [roles.join(", ")] : ["software developer"];
+        finalQueries = roles.length > 0 ? [roles.join(", ")] : ["software developer"];
       } else {
-        searchQueries = ["software developer"];
+        finalQueries = ["software developer"];
       }
     }
 
@@ -165,7 +191,7 @@ export async function POST() {
     if (prefsForSearch) {
       const locations = JSON.parse(prefsForSearch.preferredLocations || "[]");
       if (locations.length > 0) {
-        searchLocation = locations[0]; // Use first preferred location
+        searchLocation = locations[0];
       }
       const locPref = (() => {
         try { return JSON.parse(prefsForSearch.locationPreference); }
@@ -174,19 +200,26 @@ export async function POST() {
       searchRemote = Array.isArray(locPref) ? locPref.includes("remote") : locPref === "remote";
     }
 
+    // Parse experience level properly
+    let expLevel: "senior" | "mid" | "entry" | "lead" | "executive" | undefined;
+    if (prefsForSearch?.experienceLevel) {
+      const parsed = safeParse<string[]>(prefsForSearch.experienceLevel, ["mid"]);
+      expLevel = parsed[0] as typeof expLevel;
+    }
+
     const allJobs: Array<Record<string, unknown>> = [];
     const allProviderResults: Array<{ provider: string; count: number; error?: string }> = [];
 
-    for (const query of searchQueries.slice(0, 3)) {
+    for (const query of finalQueries.slice(0, maxQueries)) {
       try {
         const result = await searchJobs({
           query,
           location: searchLocation,
           remote: searchRemote || undefined,
-          experienceLevel: prefsForSearch?.experienceLevel as "senior" | "mid" | "entry" | "lead" | "executive" || undefined,
-          datePosted: "7d",
-          resultsPerPage: 25,
-        });
+          experienceLevel: expLevel,
+          datePosted,
+          resultsPerPage,
+        }, enabledProviders || undefined);
         allJobs.push(...result.jobs.map((j) => ({ ...j })));
         for (const pr of result.providerResults) {
           const existing = allProviderResults.find((p) => p.provider === pr.provider);
@@ -210,17 +243,20 @@ export async function POST() {
       return true;
     });
 
+    const usedQueries = finalQueries.slice(0, maxQueries);
     const locMsg = searchLocation ? ` in ${searchLocation}` : "";
     const remoteMsg = searchRemote ? " (remote)" : "";
     steps.push({
       step: "search",
       status: uniqueJobs.length > 0 ? "completed" : "failed",
-      message: `Found ${uniqueJobs.length} unique jobs from ${searchQueries.length} queries${locMsg}${remoteMsg}`,
+      message: `Found ${uniqueJobs.length} unique jobs from ${usedQueries.length} queries${locMsg}${remoteMsg}`,
     });
+
+    try { recordAction("autopilot"); } catch (e) { console.error("Gamification error:", e); }
 
     return NextResponse.json({
       steps,
-      searchQueries,
+      searchQueries: usedQueries,
       jobs: uniqueJobs,
       providerResults: allProviderResults,
       totalJobs: uniqueJobs.length,

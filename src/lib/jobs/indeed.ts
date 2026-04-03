@@ -1,5 +1,9 @@
 import type { JobSearchProvider, JobSearchParams, NormalizedJob } from "@/types/jobs";
 
+const HOURS_MAP: Record<string, number> = {
+  "1d": 24, "3d": 72, "7d": 168, "14d": 336, "30d": 720,
+};
+
 export class IndeedProvider implements JobSearchProvider {
   readonly name = "indeed" as const;
 
@@ -13,7 +17,7 @@ export class IndeedProvider implements JobSearchProvider {
         location: params.location || undefined,
         resultsWanted: params.resultsPerPage || 20,
         isRemote: params.remote || false,
-        hoursOld: 168, // 7 days
+        hoursOld: HOURS_MAP[params.datePosted || "7d"] || 168,
       });
 
       return results.map((job): NormalizedJob => ({

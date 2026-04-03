@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, schema } from "@/db";
 import { desc, eq, isNotNull } from "drizzle-orm";
-import { geocode } from "@/lib/geo/geocode";
+import { geocodeCompany } from "@/lib/geo/geocode";
 import { getCompanyLogoUrl } from "@/lib/company/logo";
 
 export interface MapJob {
@@ -18,6 +18,10 @@ export interface MapJob {
   latitude: number;
   longitude: number;
   savedJobId: number | null;
+}
+
+function normalizeCompanyName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
 }
 
 export async function GET() {
@@ -38,7 +42,16 @@ export async function GET() {
       .all();
     const savedMap = new Map(savedJobs.map((s) => [s.jobResultId, s.id]));
 
-    // Geocode all unique locations
+    // Load company enrichment data for headquarters info
+    const enrichments = db.select().from(schema.companyEnrichment).all();
+    const enrichmentMap = new Map(
+      enrichments.map((e) => [e.normalizedName, e])
+    );
+
+    // Geocode by company+location combo (much more accurate than just location)
+    // Cache geocode results per company+location to avoid redundant API calls
+    const geoCache = new Map<string, { latitude: number; longitude: number } | null>();
+    const logoCache = new Map<string, string | null>();
     const mapJobs: MapJob[] = [];
 
     for (const job of jobs) {
@@ -46,38 +59,45 @@ export async function GET() {
         continue;
       }
 
-      const geo = await geocode(job.location);
+      const companyKey = `${normalizeCompanyName(job.company)}:${job.location.trim().toLowerCase()}`;
 
-      if (geo.latitude && geo.longitude) {
-        // Enrich logo if missing
-        const logo = job.companyLogo || await getCompanyLogoUrl(job.company, null);
+      // Check if we already geocoded this company+location combo
+      if (!geoCache.has(companyKey)) {
+        // Get headquarters from enrichment data if available
+        const enrichment = enrichmentMap.get(normalizeCompanyName(job.company));
+        const headquarters = enrichment?.headquarters || null;
 
-        mapJobs.push({
-          id: job.id,
-          title: job.title,
-          company: job.company,
-          location: job.location,
-          salary: job.salary,
-          isRemote: job.isRemote,
-          applyUrl: job.applyUrl,
-          companyLogo: logo,
-          postedAt: job.postedAt,
-          provider: job.provider,
-          latitude: geo.latitude,
-          longitude: geo.longitude,
-          savedJobId: savedMap.get(job.id) || null,
-        });
+        const geo = await geocodeCompany(job.company, job.location, headquarters);
+        geoCache.set(
+          companyKey,
+          geo.latitude && geo.longitude ? { latitude: geo.latitude, longitude: geo.longitude } : null
+        );
       }
 
-      // Small delay to respect Nominatim rate limit for uncached
-      // (geocode function handles caching internally)
-    }
+      const coords = geoCache.get(companyKey);
+      if (!coords) continue;
 
-    // Group by approximate location for cluster info
-    const locationGroups = new Map<string, number>();
-    for (const job of mapJobs) {
-      const key = `${Math.round(job.latitude * 10) / 10},${Math.round(job.longitude * 10) / 10}`;
-      locationGroups.set(key, (locationGroups.get(key) || 0) + 1);
+      // Enrich logo (cache per company to avoid redundant lookups)
+      const logoKey = normalizeCompanyName(job.company);
+      if (!logoCache.has(logoKey)) {
+        logoCache.set(logoKey, job.companyLogo || await getCompanyLogoUrl(job.company, null));
+      }
+
+      mapJobs.push({
+        id: job.id,
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        salary: job.salary,
+        isRemote: job.isRemote,
+        applyUrl: job.applyUrl,
+        companyLogo: logoCache.get(logoKey) || job.companyLogo,
+        postedAt: job.postedAt,
+        provider: job.provider,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        savedJobId: savedMap.get(job.id) || null,
+      });
     }
 
     return NextResponse.json({

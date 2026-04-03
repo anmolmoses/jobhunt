@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
 import { parseResume } from "@/lib/resume/parser";
+import { recordAction } from "@/lib/gamification";
 import { v4 as uuidv4 } from "uuid";
 import path from "path";
 import fs from "fs";
@@ -67,6 +68,8 @@ export async function POST(request: NextRequest) {
       })
       .returning()
       .get();
+
+    try { recordAction("resume_upload"); } catch (e) { console.error("Gamification error:", e); }
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {

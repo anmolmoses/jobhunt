@@ -26,7 +26,7 @@ export async function getCompanyLogoUrl(companyName: string, existingLogo: strin
  * Guess a company's domain from its name.
  * Handles common patterns: "Google" -> "google.com", "Meta Platforms" -> "meta.com"
  */
-function guessDomain(companyName: string): string | null {
+export function guessDomain(companyName: string): string | null {
   if (!companyName) return null;
 
   // Clean the name

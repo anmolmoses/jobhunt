@@ -264,6 +264,39 @@ export const interviews = sqliteTable("interviews", {
     .default(sql`(datetime('now'))`),
 });
 
+// Cron job configuration — single-row table for automated job search scheduling
+export const cronConfig = sqliteTable("cron_config", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+  schedule: text("schedule").notNull().default("0 9 * * *"), // Default: daily at 9 AM
+  datePosted: text("date_posted").notNull().default("7d"), // How recent jobs to search for
+  resultsPerPage: integer("results_per_page").notNull().default(25),
+  lastRunAt: text("last_run_at"),
+  lastRunStatus: text("last_run_status"), // "success", "failed", "running"
+  lastRunMessage: text("last_run_message"),
+  lastRunJobsFound: integer("last_run_jobs_found"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// Cron run history — log of each automated search run
+export const cronRunHistory = sqliteTable("cron_run_history", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  status: text("status").notNull(), // "success", "failed"
+  jobsFound: integer("jobs_found").notNull().default(0),
+  queriesRun: integer("queries_run").notNull().default(0),
+  providersUsed: text("providers_used").notNull().default("[]"), // JSON array
+  message: text("message"),
+  durationMs: integer("duration_ms"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 export const geocodeCache = sqliteTable("geocode_cache", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   locationQuery: text("location_query").notNull().unique(),
@@ -274,4 +307,66 @@ export const geocodeCache = sqliteTable("geocode_cache", {
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),
+});
+
+// Gamification — profile, daily log, XP events, achievements
+
+export const gamificationProfile = sqliteTable("gamification_profile", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  totalXp: integer("total_xp").notNull().default(0),
+  level: integer("level").notNull().default(1),
+  currentStreak: integer("current_streak").notNull().default(0),
+  longestStreak: integer("longest_streak").notNull().default(0),
+  lastActiveDate: text("last_active_date"), // YYYY-MM-DD
+  streakProtectionUsed: integer("streak_protection_used", { mode: "boolean" }).notNull().default(false),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  dailyGoals: text("daily_goals").notNull().default('{"applications":3,"searches":2,"outreach":1}'), // JSON
+  streakConfig: text("streak_config").notNull().default('{"countToward":["apply","search","outreach","interview","resume"],"protectionDays":1}'), // JSON
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+export const gamificationDailyLog = sqliteTable("gamification_daily_log", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  date: text("date").notNull().unique(), // YYYY-MM-DD
+  applications: integer("applications").notNull().default(0),
+  searches: integer("searches").notNull().default(0),
+  outreach: integer("outreach").notNull().default(0),
+  interviews: integer("interviews").notNull().default(0),
+  resumeUploads: integer("resume_uploads").notNull().default(0),
+  resumeAnalyses: integer("resume_analyses").notNull().default(0),
+  resumeTailors: integer("resume_tailors").notNull().default(0),
+  jobsSaved: integer("jobs_saved").notNull().default(0),
+  totalActions: integer("total_actions").notNull().default(0),
+  xpEarned: integer("xp_earned").notNull().default(0),
+  goalsMetBonus: integer("goals_met_bonus", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+export const gamificationXpEvents = sqliteTable("gamification_xp_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  actionType: text("action_type").notNull(),
+  xpAmount: integer("xp_amount").notNull(),
+  multiplier: real("multiplier").notNull().default(1.0),
+  description: text("description").notNull(),
+  metadata: text("metadata"), // JSON
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+export const gamificationAchievements = sqliteTable("gamification_achievements", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  achievementId: text("achievement_id").notNull().unique(),
+  unlockedAt: text("unlocked_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  xpAwarded: integer("xp_awarded").notNull().default(0),
+  notified: integer("notified", { mode: "boolean" }).notNull().default(false),
 });

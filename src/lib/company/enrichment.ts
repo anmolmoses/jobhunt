@@ -3,6 +3,8 @@ import { eq } from "drizzle-orm";
 import { getSetting } from "@/lib/settings";
 import { createAIProvider } from "@/lib/ai/provider";
 import { COMPANY_ENRICHMENT_SYSTEM_PROMPT, COMPANY_ENRICHMENT_USER_PROMPT } from "@/lib/ai/prompts";
+import { isFirecrawlConfigured, scrapeCompanyInfo } from "@/lib/firecrawl/client";
+import { guessDomain } from "@/lib/company/logo";
 
 function normalizeCompanyName(name: string): string {
   return name
@@ -97,10 +99,28 @@ export async function enrichCompany(
     };
   }
 
+  // Scrape company website if Firecrawl is available (for better AI analysis)
+  let scrapedContext = "";
+  if (await isFirecrawlConfigured()) {
+    try {
+      const domain = guessDomain(companyName);
+      if (domain) {
+        const scraped = await scrapeCompanyInfo(domain);
+        const parts: string[] = [];
+        if (scraped.aboutContent) parts.push(`ABOUT PAGE:\n${scraped.aboutContent.slice(0, 2000)}`);
+        if (scraped.contactContent) parts.push(`CONTACT/OFFICES PAGE:\n${scraped.contactContent.slice(0, 2000)}`);
+        if (scraped.careersContent) parts.push(`CAREERS PAGE:\n${scraped.careersContent.slice(0, 1000)}`);
+        scrapedContext = parts.join("\n\n");
+      }
+    } catch (e) {
+      console.error("Firecrawl scrape for enrichment failed:", e);
+    }
+  }
+
   // Fetch salary data from JSearch + AI company analysis in parallel
   const [salaryData, companyInfo] = await Promise.all([
     fetchSalaryData(jobTitle, location),
-    analyzeCompany(companyName, jobTitle, location, jobDescription),
+    analyzeCompany(companyName, jobTitle, location, jobDescription, scrapedContext),
   ]);
 
   // Cache the results
@@ -206,23 +226,22 @@ async function analyzeCompany(
   companyName: string,
   jobTitle: string,
   location: string | null,
-  jobDescription: string | null
+  jobDescription: string | null,
+  scrapedContext?: string
 ): Promise<CompanyInfo> {
   try {
     const aiProvider = await createAIProvider();
 
+    const descriptionContent = jobDescription ? jobDescription.slice(0, 3000) : "No description available";
+    const userContent = scrapedContext
+      ? COMPANY_ENRICHMENT_USER_PROMPT(companyName, jobTitle, location || "Unknown", descriptionContent)
+        + "\n\n--- SCRAPED FROM COMPANY WEBSITE ---\n" + scrapedContext
+      : COMPANY_ENRICHMENT_USER_PROMPT(companyName, jobTitle, location || "Unknown", descriptionContent);
+
     const rawResponse = await aiProvider.complete({
       messages: [
         { role: "system", content: COMPANY_ENRICHMENT_SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: COMPANY_ENRICHMENT_USER_PROMPT(
-            companyName,
-            jobTitle,
-            location || "Unknown",
-            jobDescription ? jobDescription.slice(0, 3000) : "No description available"
-          ),
-        },
+        { role: "user", content: userContent },
       ],
       maxTokens: 512,
       temperature: 0.2,

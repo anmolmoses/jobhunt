@@ -203,7 +203,7 @@ export default function MapPage() {
             <div>
               <button
                 onClick={() => setSelectedCompany(null)}
-                className="text-xs text-indigo-400 hover:text-indigo-300 mb-2 flex items-center gap-1"
+                className="text-xs text-muted-foreground hover:text-foreground mb-2 flex items-center gap-1"
               >
                 &larr; All companies
               </button>
@@ -283,7 +283,7 @@ export default function MapPage() {
                       </div>
                       <div className="flex flex-wrap gap-1.5 mt-2">
                         {job.isRemote && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-900/60 text-emerald-300">Remote</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-foreground/20 text-foreground">Remote</span>
                         )}
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-800 text-gray-400">{job.provider}</span>
                       </div>
@@ -296,7 +296,7 @@ export default function MapPage() {
                         className="p-1.5 rounded-md hover:bg-gray-700 transition-colors"
                       >
                         {job.savedJobId ? (
-                          <BookmarkCheck className="h-4 w-4 text-indigo-400" />
+                          <BookmarkCheck className="h-4 w-4 text-foreground" />
                         ) : (
                           <Bookmark className="h-4 w-4 text-gray-500" />
                         )}

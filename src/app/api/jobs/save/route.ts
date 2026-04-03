@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
 import { eq, desc } from "drizzle-orm";
+import { recordAction } from "@/lib/gamification";
 
 export async function GET() {
   try {
@@ -54,6 +55,8 @@ export async function POST(request: NextRequest) {
       })
       .returning()
       .get();
+
+    try { recordAction("save_job", { jobResultId }); } catch (e) { console.error("Gamification error:", e); }
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {

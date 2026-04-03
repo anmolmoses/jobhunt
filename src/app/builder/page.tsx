@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
-import { Plus, FileText, Trash2, Download, Loader2, Pencil } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Plus, FileText, Trash2, Download, Loader2, Pencil, Upload } from "lucide-react";
 
 interface ResumeBuild {
   id: number;
@@ -17,12 +18,20 @@ interface ResumeBuild {
   updatedAt: string;
 }
 
+interface UploadedResume {
+  id: number;
+  fileName: string;
+  createdAt: string;
+}
+
 export default function BuilderListPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [builds, setBuilds] = useState<ResumeBuild[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [showSourcePicker, setShowSourcePicker] = useState(false);
+  const [uploadedResumes, setUploadedResumes] = useState<UploadedResume[]>([]);
 
   useEffect(() => {
     fetch("/api/resume-builder")
@@ -32,13 +41,32 @@ export default function BuilderListPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleCreate = async () => {
+  const openSourcePicker = async () => {
+    setShowSourcePicker(true);
+    try {
+      const res = await fetch("/api/resume/all");
+      if (res.ok) {
+        const data = await res.json();
+        setUploadedResumes(
+          (Array.isArray(data) ? data : []).map((r: { id: number; fileName: string; createdAt: string }) => ({
+            id: r.id, fileName: r.fileName, createdAt: r.createdAt,
+          }))
+        );
+      }
+    } catch { /* ignore */ }
+  };
+
+  const handleCreate = async (fromResumeId?: number) => {
+    setShowSourcePicker(false);
     setCreating(true);
     try {
       const res = await fetch("/api/resume-builder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "New Resume" }),
+        body: JSON.stringify({
+          name: "New Resume",
+          ...(fromResumeId && { fromResumeId }),
+        }),
       });
       const build = await res.json();
       router.push(`/builder/${build.id}`);
@@ -65,7 +93,7 @@ export default function BuilderListPage() {
           <h1 className="text-3xl font-bold">Resume Builder</h1>
           <p className="text-muted-foreground mt-1">Create and customize your resumes. Export to PDF on demand.</p>
         </div>
-        <Button onClick={handleCreate} disabled={creating}>
+        <Button onClick={openSourcePicker} disabled={creating}>
           {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
           New Resume
         </Button>
@@ -113,6 +141,49 @@ export default function BuilderListPage() {
           ))}
         </div>
       )}
+      {/* Source Picker Dialog */}
+      <Dialog open={showSourcePicker} onOpenChange={setShowSourcePicker}>
+        <DialogContent onClose={() => setShowSourcePicker(false)} className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Resume</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Start from scratch or import from an uploaded resume.
+          </p>
+          <div className="space-y-2">
+            <button
+              onClick={() => handleCreate()}
+              className="w-full flex items-center gap-3 rounded-lg border p-3 hover:bg-accent transition-colors text-left"
+            >
+              <Plus className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium">Blank Resume</p>
+                <p className="text-xs text-muted-foreground">Start with an empty template</p>
+              </div>
+            </button>
+            {uploadedResumes.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => handleCreate(r.id)}
+                className="w-full flex items-center gap-3 rounded-lg border p-3 hover:bg-accent transition-colors text-left"
+              >
+                <Upload className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">Import from {r.fileName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    AI will extract sections from your uploaded resume
+                  </p>
+                </div>
+              </button>
+            ))}
+            {uploadedResumes.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-2">
+                No uploaded resumes found. Upload one on the Resume page first.
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Loader2, Save, Download, Plus, Trash2, GripVertical,
   User, Briefcase, GraduationCap, Wrench, FolderOpen, Award, FileText,
-  Wand2, Search, Building2, MapPin, CheckCircle,
+  Wand2, Search, Building2, MapPin, CheckCircle, Eye, EyeOff,
 } from "lucide-react";
 
 const RichEditor = dynamic(
@@ -50,6 +50,15 @@ export default function ResumeEditorPage() {
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [tailoring, setTailoring] = useState(false);
   const [tailorResult, setTailorResult] = useState<{ changesExplanation: string; atsKeywordsAdded: string[] } | null>(null);
+
+  // Resume source selection for tailoring
+  const [uploadedResumes, setUploadedResumes] = useState<{ id: number; fileName: string; createdAt: string }[]>([]);
+  const [tailorResumeSource, setTailorResumeSource] = useState<"build" | number>("build");
+
+  // Preview
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState("");
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const [name, setName] = useState("New Resume");
   const [contact, setContact] = useState<ContactInfo>({ name: "", email: "", phone: "", linkedin: "", github: "", location: "", website: "" });
@@ -116,6 +125,35 @@ export default function ResumeEditorPage() {
     }
   };
 
+  const loadPreview = useCallback(async () => {
+    setPreviewLoading(true);
+    try {
+      const res = await fetch(`/api/resume-builder/${id}/preview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contactInfo: contact, summary, experience, education, skills, projects, certifications, customSections: [] }),
+      });
+      if (res.ok) {
+        setPreviewHtml(await res.text());
+      }
+    } catch { /* ignore */ }
+    setPreviewLoading(false);
+  }, [id, contact, summary, experience, education, skills, projects, certifications]);
+
+  const togglePreview = () => {
+    if (!showPreview) {
+      loadPreview();
+    }
+    setShowPreview((v) => !v);
+  };
+
+  // Refresh preview when data changes (debounced)
+  useEffect(() => {
+    if (!showPreview) return;
+    const timer = setTimeout(loadPreview, 800);
+    return () => clearTimeout(timer);
+  }, [showPreview, contact, summary, experience, education, skills, projects, certifications, loadPreview]);
+
   const updateExp = (i: number, field: string, value: unknown) => {
     setExperience((prev) => prev.map((e, idx) => idx === i ? { ...e, [field]: value } : e));
   };
@@ -128,10 +166,13 @@ export default function ResumeEditorPage() {
     setShowJobPicker(true);
     setLoadingJobs(true);
     try {
-      const res = await fetch("/api/jobs/all?limit=200");
-      const data = await res.json();
+      const [jobsRes, resumesRes] = await Promise.all([
+        fetch("/api/jobs/all?limit=200"),
+        fetch("/api/resume/all"),
+      ]);
+      const jobsData = await jobsRes.json();
       setAvailableJobs(
-        (data.jobs || [])
+        (jobsData.jobs || [])
           .filter((j: { description: string | null }) => j.description)
           .map((j: { id: number; title: string; company: string; location: string | null; description: string | null }) => ({
             id: j.id,
@@ -141,6 +182,16 @@ export default function ResumeEditorPage() {
             description: j.description,
           }))
       );
+      if (resumesRes.ok) {
+        const resumesData = await resumesRes.json();
+        setUploadedResumes(
+          (Array.isArray(resumesData) ? resumesData : []).map(
+            (r: { id: number; fileName: string; createdAt: string }) => ({
+              id: r.id, fileName: r.fileName, createdAt: r.createdAt,
+            })
+          )
+        );
+      }
     } catch {
       toast("Failed to load jobs", "error");
     } finally {
@@ -163,6 +214,7 @@ export default function ResumeEditorPage() {
         body: JSON.stringify({
           resumeBuildId: parseInt(id),
           jobResultId: jobId,
+          ...(tailorResumeSource !== "build" && { resumeId: tailorResumeSource }),
         }),
       });
 
@@ -228,6 +280,10 @@ export default function ResumeEditorPage() {
           <p className="text-sm text-muted-foreground">Edit your resume below. Export to PDF when ready.</p>
         </div>
         <div className="flex gap-2 shrink-0">
+          <Button variant="outline" onClick={togglePreview}>
+            {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showPreview ? "Hide Preview" : "Preview"}
+          </Button>
           <Button variant="outline" onClick={openJobPicker} disabled={tailoring}>
             {tailoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
             {tailoring ? "Tailoring..." : "Tailor for Job"}
@@ -250,20 +306,24 @@ export default function ResumeEditorPage() {
         </div>
       </div>
 
+      {/* Main layout: editor + preview side by side */}
+      <div className={showPreview ? "flex gap-6" : ""}>
+      <div className={showPreview ? "flex-1 min-w-0 space-y-6" : "space-y-6"}>
+
       {/* Tailor result banner */}
       {tailorResult && (
-        <Card className="border-green-500/30 bg-green-50 dark:bg-green-950/20">
+        <Card className="border-foreground/20 bg-muted/50">
           <CardContent className="py-3">
             <div className="flex items-start gap-3">
-              <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+              <CheckCircle className="h-5 w-5 text-foreground mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-medium text-green-800 dark:text-green-200">Resume Tailored Successfully</p>
-                <p className="text-xs text-green-700 dark:text-green-300 mt-1">{tailorResult.changesExplanation}</p>
+                <p className="text-sm font-medium text-foreground">Resume Tailored Successfully</p>
+                <p className="text-xs text-muted-foreground mt-1">{tailorResult.changesExplanation}</p>
                 {tailorResult.atsKeywordsAdded.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
-                    <span className="text-xs text-green-600">Keywords added:</span>
+                    <span className="text-xs text-foreground">Keywords added:</span>
                     {tailorResult.atsKeywordsAdded.map((kw, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                      <Badge key={i} variant="secondary" className="text-xs">
                         {kw}
                       </Badge>
                     ))}
@@ -465,6 +525,34 @@ export default function ResumeEditorPage() {
         </CardContent>
       </Card>
 
+      </div>{/* end editor column */}
+
+      {/* Preview panel */}
+      {showPreview && (
+        <div className="w-[520px] shrink-0 sticky top-4 self-start">
+          <Card className="overflow-hidden">
+            <CardHeader className="py-3 px-4 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Eye className="h-4 w-4" />
+                Live Preview
+              </CardTitle>
+              {previewLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="border-t bg-white" style={{ height: "calc(100vh - 160px)" }}>
+                <iframe
+                  srcDoc={previewHtml}
+                  className="w-full h-full border-0"
+                  title="Resume Preview"
+                  style={{ transform: "scale(0.65)", transformOrigin: "top left", width: "154%", height: "154%" }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      </div>{/* end flex layout */}
+
       {/* Bottom save bar */}
       <div className="fixed bottom-0 left-64 right-0 z-50 border-t bg-background/95 backdrop-blur p-4">
         <div className="container max-w-6xl flex items-center justify-between">
@@ -496,8 +584,41 @@ export default function ResumeEditorPage() {
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Pick a job listing. AI will rewrite your summary, optimize bullet points, and match ATS keywords to this specific role.
+            Choose a base resume and a job listing. AI will rewrite the summary, optimize bullet points, and match ATS keywords.
           </p>
+
+          {/* Resume Source Selector */}
+          <div className="space-y-2">
+            <Label className="text-xs font-medium text-muted-foreground">Base Resume</Label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setTailorResumeSource("build")}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                  tailorResumeSource === "build" ? "bg-primary/5 border-foreground/20 font-medium" : "hover:bg-muted"
+                }`}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Current Build
+              </button>
+              {uploadedResumes.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setTailorResumeSource(r.id)}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                    tailorResumeSource === r.id ? "bg-primary/5 border-foreground/20 font-medium" : "hover:bg-muted"
+                  }`}
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  {r.fileName}
+                </button>
+              ))}
+            </div>
+            {tailorResumeSource !== "build" && (
+              <p className="text-xs text-muted-foreground">
+                Using uploaded resume as the base content for tailoring.
+              </p>
+            )}
+          </div>
 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

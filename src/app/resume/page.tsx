@@ -44,7 +44,7 @@ function parseJsonField(field: string | string[]): string[] {
 }
 
 function ScoreBadge({ score }: { score: number }) {
-  const color = score >= 70 ? "text-green-600 bg-green-100" : score >= 40 ? "text-yellow-600 bg-yellow-100" : "text-red-600 bg-red-100";
+  const color = score >= 70 ? "text-foreground bg-foreground/10" : score >= 40 ? "text-foreground bg-foreground/5" : "text-muted-foreground bg-muted";
   return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${color}`}>{score}/100</span>;
 }
 

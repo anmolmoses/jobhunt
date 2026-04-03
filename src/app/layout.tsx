@@ -15,7 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ToastProvider>
           <Sidebar />
           <main className="ml-64 min-h-screen">
-            <div className="container max-w-6xl p-8">{children}</div>
+            <div className="p-8">{children}</div>
           </main>
         </ToastProvider>
       </body>

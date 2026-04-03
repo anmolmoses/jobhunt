@@ -1,5 +1,9 @@
 import type { JobSearchProvider, JobSearchParams, NormalizedJob } from "@/types/jobs";
 
+const DATE_MAP: Record<string, number> = {
+  "1d": 1, "3d": 3, "7d": 7, "14d": 14, "30d": 30,
+};
+
 /**
  * Scrapes HackerNews "Who's Hiring" monthly threads via Algolia API.
  * These are high-quality tech jobs posted by hiring managers directly.
@@ -9,15 +13,31 @@ export class HackerNewsProvider implements JobSearchProvider {
 
   async search(params: JobSearchParams): Promise<NormalizedJob[]> {
     try {
-      // Find the latest "Who is hiring?" thread
+      // Determine how far back to look based on datePosted
+      const maxAgeDays = DATE_MAP[params.datePosted || "30d"] || 30;
+
+      // Find "Who is hiring?" threads, get a few to check recency
       const searchRes = await fetch(
-        `https://hn.algolia.com/api/v1/search?query=%22who%20is%20hiring%22&tags=story&hitsPerPage=1`
+        `https://hn.algolia.com/api/v1/search?query=%22who%20is%20hiring%22&tags=story&hitsPerPage=3`
       );
       if (!searchRes.ok) return [];
 
       const searchData = await searchRes.json();
-      const threadId = searchData.hits?.[0]?.objectID;
-      if (!threadId) return [];
+      const hits = searchData.hits || [];
+      if (hits.length === 0) return [];
+
+      // Filter threads to only those within the date range
+      const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+      const recentHits = hits.filter((h: { created_at_i?: number }) =>
+        h.created_at_i && h.created_at_i * 1000 >= cutoff
+      );
+      if (recentHits.length === 0) return [];
+
+      // Use the most recent thread
+      const threadId = recentHits[0].objectID;
+      const threadTimestamp = recentHits[0].created_at_i
+        ? new Date(recentHits[0].created_at_i * 1000).toISOString()
+        : new Date().toISOString();
 
       // Get the comments (job postings) from the thread
       const commentsRes = await fetch(
@@ -49,7 +69,10 @@ export class HackerNewsProvider implements JobSearchProvider {
         }
 
         // Parse the comment — HN format is typically: "Company | Role | Location | ..."
-        const parsed = parseHNComment(text, comment.id);
+        const commentTimestamp = comment.created_at_i
+          ? new Date(comment.created_at_i * 1000).toISOString()
+          : threadTimestamp;
+        const parsed = parseHNComment(text, comment.id, commentTimestamp);
         if (parsed) {
           jobs.push(parsed);
         }
@@ -69,7 +92,7 @@ export class HackerNewsProvider implements JobSearchProvider {
   }
 }
 
-function parseHNComment(html: string, commentId: string): NormalizedJob | null {
+function parseHNComment(html: string, commentId: string, postedAt: string): NormalizedJob | null {
   // Strip HTML tags and decode entities
   const text = html
     .replace(/<[^>]*>/g, " ")
@@ -139,7 +162,7 @@ function parseHNComment(html: string, commentId: string): NormalizedJob | null {
     isRemote,
     applyUrl,
     companyLogo: null,
-    postedAt: new Date().toISOString(),
+    postedAt,
     tags: ["hackernews"],
     relevanceScore: null,
     dedupeKey: normalize(title || "") + "|" + normalize(company),

@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
-import { Save, TestTube, Loader2, Trash2, AlertTriangle } from "lucide-react";
+import { Save, TestTube, Loader2, Trash2, AlertTriangle, Clock, Play, CheckCircle, XCircle, Timer } from "lucide-react";
+import { GamificationSettings } from "@/components/settings/gamification-settings";
+import { SearchConfigSettings } from "@/components/settings/search-config";
 
 const CLAUDE_MODELS = [
   { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 (latest)" },
@@ -49,6 +51,8 @@ export default function SettingsPage() {
     adzuna_country: "us",
     happenstance_api_key: "",
     logodev_api_key: "",
+    firecrawl_api_url: "",
+    firecrawl_api_key: "",
   });
 
   // Track which fields user has actually edited (don't send masked values)
@@ -110,6 +114,7 @@ export default function SettingsPage() {
       payload.claude_model = settings.claude_model;
       payload.openai_model = settings.openai_model;
       payload.adzuna_country = settings.adzuna_country;
+      if (settings.firecrawl_api_url) payload.firecrawl_api_url = settings.firecrawl_api_url;
 
       const res = await fetch("/api/settings", {
         method: "PUT",
@@ -383,6 +388,79 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Web Scraping (Firecrawl)</CardTitle>
+          <CardDescription>
+            Self-host Firecrawl via Docker for richer company data, full job descriptions, and accurate office locations.
+            Enhances Company Intelligence, Resume Tailoring, and Job Map accuracy.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>
+              Firecrawl Instance URL
+              <EnvBadge field="firecrawl_api_url" />
+            </Label>
+            <Input
+              placeholder="http://localhost:3002"
+              value={settings.firecrawl_api_url}
+              onChange={(e) => updateField("firecrawl_api_url", e.target.value)}
+            />
+            {envSources.has("firecrawl_api_url") ? (
+              <p className="text-xs text-muted-foreground">Loaded from FIRECRAWL_API_URL environment variable</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                URL of your self-hosted Firecrawl instance. Run via Docker:{" "}
+                <code className="text-xs bg-muted px-1 rounded">docker run -p 3002:3002 mendableai/firecrawl</code>
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>
+              Firecrawl API Key <span className="text-muted-foreground font-normal">(optional for self-hosted)</span>
+              <EnvBadge field="firecrawl_api_key" />
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                type="password"
+                placeholder="fc-... (leave empty if auth disabled)"
+                value={settings.firecrawl_api_key}
+                onChange={(e) => updateField("firecrawl_api_key", e.target.value)}
+                className="flex-1"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!settings.firecrawl_api_url || testing === "firecrawl"}
+                onClick={() => handleTest("firecrawl")}
+              >
+                {testing === "firecrawl" ? <Loader2 className="h-4 w-4 animate-spin" /> : <TestTube className="h-4 w-4" />}
+                Test
+              </Button>
+            </div>
+            {envSources.has("firecrawl_api_key") ? (
+              <p className="text-xs text-muted-foreground">Loaded from FIRECRAWL_API_KEY environment variable</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Only needed if you enabled auth on your Firecrawl instance. Leave blank for default self-hosted setup.
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-lg border p-3 bg-muted/50 space-y-1">
+            <p className="text-sm font-medium">What Firecrawl enables</p>
+            <ul className="text-xs text-muted-foreground space-y-0.5">
+              <li>Company Intelligence — scrapes real company data (office addresses, about page, team size)</li>
+              <li>Job Map — accurate office locations from company websites instead of city-center pins</li>
+              <li>Resume Tailoring — full job descriptions scraped from apply URLs</li>
+              <li>Job Search — enriches truncated descriptions from providers</li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving}>
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -390,9 +468,355 @@ export default function SettingsPage() {
         </Button>
       </div>
 
+      <SearchConfigSettings />
+
+      <GamificationSettings />
+
+      <CronSettings />
+
       <DataManagement />
     </div>
   );
+}
+
+const SCHEDULE_PRESETS = [
+  { label: "Every 6 hours", value: "0 */6 * * *" },
+  { label: "Every 12 hours", value: "0 */12 * * *" },
+  { label: "Daily at 9 AM", value: "0 9 * * *" },
+  { label: "Daily at 6 AM", value: "0 6 * * *" },
+  { label: "Twice a day (9 AM & 6 PM)", value: "0 9,18 * * *" },
+  { label: "Every weekday at 8 AM", value: "0 8 * * 1-5" },
+  { label: "Weekly (Monday 9 AM)", value: "0 9 * * 1" },
+  { label: "Custom", value: "custom" },
+];
+
+const DATE_POSTED_OPTIONS = [
+  { label: "Last 24 hours", value: "1d" },
+  { label: "Last 3 days", value: "3d" },
+  { label: "Last 7 days", value: "7d" },
+  { label: "Last 14 days", value: "14d" },
+  { label: "Last 30 days", value: "30d" },
+];
+
+interface CronStatus {
+  enabled: boolean;
+  schedule: string;
+  datePosted: string;
+  resultsPerPage: number;
+  lastRunAt: string | null;
+  lastRunStatus: string | null;
+  lastRunMessage: string | null;
+  lastRunJobsFound: number | null;
+  isRunning: boolean;
+}
+
+interface CronHistoryEntry {
+  id: number;
+  status: string;
+  jobsFound: number;
+  queriesRun: number;
+  providersUsed: string;
+  message: string | null;
+  durationMs: number | null;
+  createdAt: string;
+}
+
+function CronSettings() {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<CronHistoryEntry[]>([]);
+  const [config, setConfig] = useState<CronStatus>({
+    enabled: false,
+    schedule: "0 9 * * *",
+    datePosted: "7d",
+    resultsPerPage: 25,
+    lastRunAt: null,
+    lastRunStatus: null,
+    lastRunMessage: null,
+    lastRunJobsFound: null,
+    isRunning: false,
+  });
+  const [customCron, setCustomCron] = useState("");
+  const [selectedPreset, setSelectedPreset] = useState("0 9 * * *");
+
+  useEffect(() => {
+    fetch("/api/cron")
+      .then((res) => res.json())
+      .then((data: CronStatus) => {
+        setConfig(data);
+        const preset = SCHEDULE_PRESETS.find((p) => p.value === data.schedule);
+        if (preset) {
+          setSelectedPreset(data.schedule);
+        } else {
+          setSelectedPreset("custom");
+          setCustomCron(data.schedule);
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const schedule = selectedPreset === "custom" ? customCron : selectedPreset;
+      const res = await fetch("/api/cron", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schedule,
+          enabled: config.enabled,
+          datePosted: config.datePosted,
+          resultsPerPage: config.resultsPerPage,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setConfig(data);
+        toast("Cron schedule saved", "success");
+      } else {
+        toast(data.error || "Failed to save", "error");
+      }
+    } catch {
+      toast("Failed to save cron settings", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRunNow = async () => {
+    setRunning(true);
+    setConfig((prev) => ({ ...prev, isRunning: true, lastRunStatus: "running" }));
+    try {
+      const res = await fetch("/api/cron/run", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setConfig((prev) => ({
+          ...prev,
+          lastRunAt: new Date().toISOString(),
+          lastRunStatus: data.status,
+          lastRunMessage: data.message,
+          lastRunJobsFound: data.jobsFound,
+          isRunning: false,
+        }));
+        toast(data.message || "Search completed", data.status === "success" ? "success" : "error");
+      } else {
+        setConfig((prev) => ({ ...prev, isRunning: false }));
+        toast(data.error || "Failed to run", "error");
+      }
+    } catch {
+      setConfig((prev) => ({ ...prev, isRunning: false }));
+      toast("Failed to trigger search", "error");
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const loadHistory = async () => {
+    if (showHistory) {
+      setShowHistory(false);
+      return;
+    }
+    try {
+      const res = await fetch("/api/cron/history");
+      const data = await res.json();
+      setHistory(data);
+      setShowHistory(true);
+    } catch {
+      toast("Failed to load history", "error");
+    }
+  };
+
+  if (loading) return null;
+
+  const scheduleLabel = selectedPreset === "custom"
+    ? customCron
+    : SCHEDULE_PRESETS.find((p) => p.value === selectedPreset)?.label || selectedPreset;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Clock className="h-5 w-5" />
+          Automated Job Search
+        </CardTitle>
+        <CardDescription>
+          Schedule automatic job searches based on your resume and preferences
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Enable/Disable */}
+        <div className="flex items-center justify-between rounded-lg border p-3">
+          <div>
+            <p className="text-sm font-medium">Enable Scheduled Search</p>
+            <p className="text-xs text-muted-foreground">
+              {config.enabled ? `Running: ${scheduleLabel}` : "Disabled — no automatic searches"}
+            </p>
+          </div>
+          <Button
+            variant={config.enabled ? "default" : "outline"}
+            size="sm"
+            onClick={() => setConfig((prev) => ({ ...prev, enabled: !prev.enabled }))}
+          >
+            {config.enabled ? "Enabled" : "Disabled"}
+          </Button>
+        </div>
+
+        {/* Schedule Picker */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Schedule</Label>
+            <Select
+              value={selectedPreset}
+              onChange={(e) => {
+                setSelectedPreset(e.target.value);
+                if (e.target.value !== "custom") {
+                  setCustomCron("");
+                }
+              }}
+            >
+              {SCHEDULE_PRESETS.map((p) => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
+            </Select>
+          </div>
+
+          {selectedPreset === "custom" && (
+            <div className="space-y-2">
+              <Label>Cron Expression</Label>
+              <Input
+                placeholder="0 9 * * *"
+                value={customCron}
+                onChange={(e) => setCustomCron(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Format: minute hour day month weekday (e.g. &quot;0 */6 * * *&quot; = every 6h)
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Search Parameters */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Job Recency</Label>
+            <Select
+              value={config.datePosted}
+              onChange={(e) => setConfig((prev) => ({ ...prev, datePosted: e.target.value }))}
+            >
+              {DATE_POSTED_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Results per Query</Label>
+            <Select
+              value={String(config.resultsPerPage)}
+              onChange={(e) => setConfig((prev) => ({ ...prev, resultsPerPage: Number(e.target.value) }))}
+            >
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </Select>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          <Button onClick={handleSave} disabled={saving} size="sm">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save Schedule
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRunNow}
+            disabled={running || config.isRunning}
+          >
+            {running || config.isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+            Run Now
+          </Button>
+          <Button variant="ghost" size="sm" onClick={loadHistory}>
+            <Timer className="h-4 w-4" />
+            {showHistory ? "Hide" : "History"}
+          </Button>
+        </div>
+
+        {/* Last Run Status */}
+        {config.lastRunAt && (
+          <div className="rounded-lg border p-3 bg-muted/50">
+            <div className="flex items-center gap-2 mb-1">
+              {config.lastRunStatus === "success" ? (
+                <CheckCircle className="h-4 w-4 text-foreground" />
+              ) : config.lastRunStatus === "running" ? (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              ) : (
+                <XCircle className="h-4 w-4 text-foreground" />
+              )}
+              <span className="text-sm font-medium capitalize">{config.lastRunStatus}</span>
+              <span className="text-xs text-muted-foreground ml-auto">
+                {formatRelativeTime(config.lastRunAt)}
+              </span>
+            </div>
+            {config.lastRunMessage && (
+              <p className="text-xs text-muted-foreground">{config.lastRunMessage}</p>
+            )}
+            {config.lastRunJobsFound != null && config.lastRunJobsFound > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {config.lastRunJobsFound} jobs found
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Run History */}
+        {showHistory && history.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Recent Runs</p>
+            <div className="max-h-60 overflow-y-auto space-y-1">
+              {history.map((entry) => (
+                <div key={entry.id} className="flex items-center gap-2 rounded border px-3 py-2 text-xs">
+                  {entry.status === "success" ? (
+                    <CheckCircle className="h-3 w-3 text-foreground shrink-0" />
+                  ) : (
+                    <XCircle className="h-3 w-3 text-foreground shrink-0" />
+                  )}
+                  <span className="truncate flex-1">{entry.message}</span>
+                  {entry.durationMs != null && (
+                    <span className="text-muted-foreground shrink-0">{(entry.durationMs / 1000).toFixed(1)}s</span>
+                  )}
+                  <span className="text-muted-foreground shrink-0">
+                    {formatRelativeTime(entry.createdAt)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {showHistory && history.length === 0 && (
+          <p className="text-xs text-muted-foreground">No runs yet</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function formatRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDays = Math.floor(diffHr / 24);
+  return `${diffDays}d ago`;
 }
 
 function DataManagement() {

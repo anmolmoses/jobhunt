@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
 import { eq, desc } from "drizzle-orm";
+import { recordAction } from "@/lib/gamification";
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,6 +45,8 @@ export async function POST(request: NextRequest) {
       .set({ status: "interviewing", updatedAt: new Date().toISOString() })
       .where(eq(schema.savedJobs.id, body.savedJobId))
       .run();
+
+    try { recordAction("interview", { savedJobId: body.savedJobId }); } catch (e) { console.error("Gamification error:", e); }
 
     return NextResponse.json(interview, { status: 201 });
   } catch (error) {

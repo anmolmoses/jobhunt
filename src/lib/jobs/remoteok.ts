@@ -1,5 +1,9 @@
 import type { JobSearchProvider, JobSearchParams, NormalizedJob } from "@/types/jobs";
 
+const DATE_MAP: Record<string, number> = {
+  "1d": 1, "3d": 3, "7d": 7, "14d": 14, "30d": 30,
+};
+
 export class RemoteOKProvider implements JobSearchProvider {
   readonly name = "remoteok" as const;
 
@@ -18,8 +22,15 @@ export class RemoteOKProvider implements JobSearchProvider {
       const queryTerms = params.query.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
       const locationTerms = params.location?.toLowerCase().split(/[\s,]+/).filter((t) => t.length > 2) || [];
 
+      // Date filtering
+      const maxAgeDays = DATE_MAP[params.datePosted || "30d"] || 30;
+      const dateCutoff = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000);
+
       // Client-side filtering
       let filtered = jobs.filter((job: Record<string, unknown>) => {
+        // Filter by date first
+        const jobDate = job.date ? new Date(job.date as string) : null;
+        if (jobDate && jobDate < dateCutoff) return false;
         const title = ((job.position as string) || "").toLowerCase();
         const company = ((job.company as string) || "").toLowerCase();
         const tags = ((job.tags as string[]) || []).map((t) => t.toLowerCase());

@@ -19,16 +19,12 @@ interface AnalysisData {
   detailedFeedback: string;
 }
 
-function ScoreColor(score: number): string {
-  if (score >= 70) return "text-green-600 dark:text-green-400";
-  if (score >= 40) return "text-yellow-600 dark:text-yellow-400";
-  return "text-red-600 dark:text-red-400";
+function ScoreColor(_score: number): string {
+  return "text-foreground";
 }
 
-function ProgressColor(score: number): string {
-  if (score >= 70) return "bg-green-500";
-  if (score >= 40) return "bg-yellow-500";
-  return "bg-red-500";
+function ProgressColor(_score: number): string {
+  return "bg-primary";
 }
 
 function ScoreCircle({ score, label }: { score: number; label: string }) {
@@ -50,7 +46,7 @@ function ScoreCircle({ score, label }: { score: number; label: string }) {
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
             className={cn(
-              score >= 70 ? "stroke-green-500" : score >= 40 ? "stroke-yellow-500" : "stroke-red-500"
+              "stroke-foreground"
             )}
           />
         </svg>
@@ -93,13 +89,13 @@ export function AnalysisCard({ analysis }: { analysis: AnalysisData }) {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg text-green-600 dark:text-green-400">Strengths</CardTitle>
+            <CardTitle className="text-lg">Strengths</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
               {analysis.strengths.map((s, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm">
-                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-foreground shrink-0" />
                   {s}
                 </li>
               ))}
@@ -109,13 +105,13 @@ export function AnalysisCard({ analysis }: { analysis: AnalysisData }) {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg text-yellow-600 dark:text-yellow-400">Improvements</CardTitle>
+            <CardTitle className="text-lg">Improvements</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
               {analysis.improvements.map((s, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm">
-                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-yellow-500 shrink-0" />
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-foreground/60 shrink-0" />
                   {s}
                 </li>
               ))}
@@ -125,13 +121,13 @@ export function AnalysisCard({ analysis }: { analysis: AnalysisData }) {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg text-red-600 dark:text-red-400">Consider Removing</CardTitle>
+            <CardTitle className="text-lg">Consider Removing</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
               {analysis.toRemove.map((s, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm">
-                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-foreground/40 shrink-0" />
                   {s}
                 </li>
               ))}
@@ -141,13 +137,13 @@ export function AnalysisCard({ analysis }: { analysis: AnalysisData }) {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg text-blue-600 dark:text-blue-400">Consider Adding</CardTitle>
+            <CardTitle className="text-lg">Consider Adding</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
               {analysis.toAdd.map((s, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm">
-                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" />
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-foreground/60 shrink-0" />
                   {s}
                 </li>
               ))}

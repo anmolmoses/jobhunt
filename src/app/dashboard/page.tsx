@@ -16,6 +16,7 @@ import {
   AlertCircle, User,
 } from "lucide-react";
 import type { NormalizedJob } from "@/types/jobs";
+import { GamificationWidget } from "@/components/gamification/gamification-widget";
 
 type ExtendedJob = NormalizedJob & { dbId?: number };
 
@@ -46,8 +47,8 @@ interface StepState {
 function ScoreCircle({ score }: { score: number }) {
   const circumference = 2 * Math.PI * 45;
   const strokeDashoffset = circumference - (score / 100) * circumference;
-  const color = score >= 70 ? "stroke-green-500" : score >= 40 ? "stroke-yellow-500" : "stroke-red-500";
-  const textColor = score >= 70 ? "text-green-600" : score >= 40 ? "text-yellow-600" : "text-red-600";
+  const color = "stroke-foreground";
+  const textColor = "text-foreground";
   return (
     <div className="relative h-32 w-32">
       <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
@@ -334,9 +335,9 @@ export default function DashboardPage() {
                   <div className="mt-0.5">
                     {step.status === "pending" && <Circle className="h-5 w-5 text-muted-foreground" />}
                     {step.status === "running" && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
-                    {step.status === "done" && <CheckCircle className="h-5 w-5 text-green-500" />}
-                    {step.status === "skipped" && <CheckCircle className="h-5 w-5 text-blue-500" />}
-                    {step.status === "error" && <AlertCircle className="h-5 w-5 text-red-500" />}
+                    {step.status === "done" && <CheckCircle className="h-5 w-5 text-foreground" />}
+                    {step.status === "skipped" && <CheckCircle className="h-5 w-5 text-muted-foreground" />}
+                    {step.status === "error" && <AlertCircle className="h-5 w-5 text-foreground" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className={cn(
@@ -344,7 +345,7 @@ export default function DashboardPage() {
                       step.status === "pending" && "text-muted-foreground",
                       step.status === "running" && "text-foreground",
                       step.status === "done" && "text-foreground",
-                      step.status === "error" && "text-red-600",
+                      step.status === "error" && "text-foreground",
                     )}>
                       {step.label}
                     </p>
@@ -455,7 +456,7 @@ export default function DashboardPage() {
             <div className="space-y-2">
               {setupSteps.map((step, i) => (
                 <Link key={i} href={step.href} className={cn("flex items-center gap-3 rounded-lg p-2 transition-colors", step.done ? "text-muted-foreground" : "hover:bg-accent")}>
-                  {step.done ? <CheckCircle className="h-5 w-5 text-green-500 shrink-0" /> : <Circle className="h-5 w-5 text-muted-foreground shrink-0" />}
+                  {step.done ? <CheckCircle className="h-5 w-5 text-foreground shrink-0" /> : <Circle className="h-5 w-5 text-muted-foreground shrink-0" />}
                   <step.icon className="h-4 w-4 shrink-0" />
                   <span className={cn("text-sm", step.done && "line-through")}>{step.label}</span>
                 </Link>
@@ -464,6 +465,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Gamification Widget */}
+      <GamificationWidget />
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

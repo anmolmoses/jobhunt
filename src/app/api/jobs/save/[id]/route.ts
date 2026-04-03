@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { parseIdParam } from "@/lib/utils";
+import { recordAction } from "@/lib/gamification";
 
 export async function PATCH(
   request: NextRequest,
@@ -43,6 +44,11 @@ export async function PATCH(
       .set(updates)
       .where(eq(schema.savedJobs.id, savedJobId))
       .run();
+
+    // Award gamification XP on apply
+    if (body.status === "applied" && oldJob?.status !== "applied") {
+      try { recordAction("apply", { savedJobId }); } catch (e) { console.error("Gamification error:", e); }
+    }
 
     // Log activity on status change
     if (body.status && oldJob && body.status !== oldJob.status) {

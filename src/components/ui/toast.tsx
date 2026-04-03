@@ -54,8 +54,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             key={t.id}
             className={cn(
               "flex items-center gap-2 rounded-lg border px-4 py-3 shadow-lg animate-in slide-in-from-right-full",
-              t.type === "success" && "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200",
-              t.type === "error" && "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200",
+              t.type === "success" && "border-border bg-card text-foreground",
+              t.type === "error" && "border-border bg-card text-foreground",
               t.type === "info" && "border-border bg-background text-foreground"
             )}
           >

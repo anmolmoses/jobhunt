@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
 import { eq, desc } from "drizzle-orm";
+import { recordAction } from "@/lib/gamification";
 
 // GET all outreach records
 export async function GET() {
@@ -50,6 +51,8 @@ export async function POST(request: NextRequest) {
       })
       .returning()
       .get();
+
+    try { recordAction("outreach", { contactId: body.contactId }); } catch (e) { console.error("Gamification error:", e); }
 
     return NextResponse.json(record, { status: 201 });
   } catch (error) {

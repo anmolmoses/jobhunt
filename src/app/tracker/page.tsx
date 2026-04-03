@@ -80,11 +80,11 @@ interface TrackerData {
 }
 
 const PIPELINE_COLUMNS = [
-  { key: "saved", label: "Saved", color: "bg-gray-500", icon: Briefcase },
-  { key: "applied", label: "Applied", color: "bg-blue-500", icon: Target },
-  { key: "interviewing", label: "Interviewing", color: "bg-purple-500", icon: Video },
-  { key: "offered", label: "Offered", color: "bg-green-500", icon: TrendingUp },
-  { key: "rejected", label: "Rejected", color: "bg-red-500", icon: AlertCircle },
+  { key: "saved", label: "Saved", color: "bg-foreground/30", icon: Briefcase },
+  { key: "applied", label: "Applied", color: "bg-foreground/50", icon: Target },
+  { key: "interviewing", label: "Interviewing", color: "bg-foreground/70", icon: Video },
+  { key: "offered", label: "Offered", color: "bg-foreground/90", icon: TrendingUp },
+  { key: "rejected", label: "Rejected", color: "bg-foreground/40", icon: AlertCircle },
 ];
 
 const INTERVIEW_TYPES = [
@@ -213,9 +213,9 @@ export default function TrackerPage() {
 
       {/* Alert Cards */}
       <div className="grid gap-3 md:grid-cols-3">
-        <Card className={followUpsDue.length > 0 ? "border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20" : ""}>
+        <Card className={followUpsDue.length > 0 ? "border-foreground/20 bg-muted/50" : ""}>
           <CardContent className="py-3 flex items-center gap-3">
-            <Clock className={`h-5 w-5 ${followUpsDue.length > 0 ? "text-yellow-600" : "text-muted-foreground"}`} />
+            <Clock className={`h-5 w-5 ${followUpsDue.length > 0 ? "text-foreground" : "text-muted-foreground"}`} />
             <div>
               <p className="text-sm font-medium">{followUpsDue.length} follow-up{followUpsDue.length !== 1 ? "s" : ""} due</p>
               {followUpsDue.length > 0 && (
@@ -224,9 +224,9 @@ export default function TrackerPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className={upcomingInterviews.length > 0 ? "border-purple-500/50 bg-purple-50 dark:bg-purple-950/20" : ""}>
+        <Card className={upcomingInterviews.length > 0 ? "border-foreground/20 bg-muted/50" : ""}>
           <CardContent className="py-3 flex items-center gap-3">
-            <Video className={`h-5 w-5 ${upcomingInterviews.length > 0 ? "text-purple-600" : "text-muted-foreground"}`} />
+            <Video className={`h-5 w-5 ${upcomingInterviews.length > 0 ? "text-foreground" : "text-muted-foreground"}`} />
             <div>
               <p className="text-sm font-medium">{upcomingInterviews.length} upcoming interview{upcomingInterviews.length !== 1 ? "s" : ""}</p>
               {upcomingInterviews.length > 0 && upcomingInterviews[0].scheduledAt && (
@@ -304,13 +304,13 @@ export default function TrackerPage() {
                         )}
 
                         {item.nextStep && (
-                          <p className="text-[10px] text-blue-600 font-medium flex items-center gap-1">
+                          <p className="text-[10px] text-foreground font-medium flex items-center gap-1">
                             <ArrowRight className="h-2.5 w-2.5" />{item.nextStep}
                           </p>
                         )}
 
                         {item.followUpDate && (
-                          <p className={`text-[10px] flex items-center gap-1 ${item.followUpDate <= new Date().toISOString().split("T")[0] ? "text-yellow-600 font-medium" : "text-muted-foreground"}`}>
+                          <p className={`text-[10px] flex items-center gap-1 ${item.followUpDate <= new Date().toISOString().split("T")[0] ? "text-foreground font-medium" : "text-muted-foreground"}`}>
                             <Clock className="h-2.5 w-2.5" />Follow up: {item.followUpDate}
                           </p>
                         )}
@@ -467,14 +467,14 @@ export default function TrackerPage() {
               {activity.map((item, i) => {
                 const job = pipeline.find((p) => p.id === item.savedJobId);
                 const typeColors: Record<string, string> = {
-                  applied: "bg-blue-500",
-                  offer_received: "bg-green-500",
-                  status_change: "bg-gray-400",
-                  interview_scheduled: "bg-purple-500",
-                  interview_passed: "bg-green-500",
-                  interview_failed: "bg-red-500",
-                  follow_up_set: "bg-yellow-500",
-                  follow_up_due: "bg-orange-500",
+                  applied: "bg-foreground/70",
+                  offer_received: "bg-foreground/90",
+                  status_change: "bg-foreground/40",
+                  interview_scheduled: "bg-foreground/60",
+                  interview_passed: "bg-foreground/90",
+                  interview_failed: "bg-foreground/30",
+                  follow_up_set: "bg-foreground/50",
+                  follow_up_due: "bg-foreground/50",
                 };
                 return (
                   <div key={item.id} className="relative pl-10 pb-6">

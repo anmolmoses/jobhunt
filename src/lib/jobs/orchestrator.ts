@@ -105,8 +105,21 @@ export async function searchJobs(
     }
   });
 
+  // Enforce date filter as a safety net — regardless of what providers return
+  const DATE_DAYS: Record<string, number> = {
+    "1d": 1, "3d": 3, "7d": 7, "14d": 14, "30d": 30,
+  };
+  const maxAgeDays = DATE_DAYS[params.datePosted || "30d"] || 30;
+  // Allow 2x the requested window to avoid being too aggressive with timezone/clock skew
+  const dateCutoff = new Date(Date.now() - maxAgeDays * 2 * 24 * 60 * 60 * 1000);
+  const dateFiltered = allJobs.filter((job) => {
+    if (!job.postedAt) return true; // Keep jobs with unknown dates (some providers don't report)
+    const jobDate = new Date(job.postedAt);
+    return jobDate >= dateCutoff;
+  });
+
   // Deduplicate
-  const deduped = deduplicateJobs(allJobs);
+  const deduped = deduplicateJobs(dateFiltered);
 
   // Load user preferences for filtering and scoring
   const userPrefs = loadPreferences();

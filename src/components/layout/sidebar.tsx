@@ -15,6 +15,7 @@ import {
   PenTool,
   Settings,
   Briefcase,
+  Trophy,
 } from "lucide-react";
 
 const navItems = [
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/map", label: "Job Map", icon: Map },
   { href: "/saved", label: "Saved Jobs", icon: Bookmark },
   { href: "/networking", label: "Networking", icon: Users },
+  { href: "/gamification", label: "Progress", icon: Trophy },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

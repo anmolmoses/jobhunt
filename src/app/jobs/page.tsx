@@ -410,6 +410,24 @@ export default function JobsPage() {
         </Card>
       )}
 
+      {/* Quick filters: company dropdown + results count */}
+      <div className="flex items-center gap-3">
+        <Select
+          value={filterCompany}
+          onChange={(e) => setFilterCompany(e.target.value)}
+        >
+          <option value="">All companies ({availableCompanies.length})</option>
+          {availableCompanies.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </Select>
+        {filterCompany && (
+          <Button variant="ghost" size="sm" className="text-xs" onClick={() => setFilterCompany("")}>
+            <X className="h-3 w-3" /> Clear
+          </Button>
+        )}
+      </div>
+
       {/* Results count */}
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>

@@ -2,7 +2,8 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { BookmarkCheck, MapPin, Building2, Calendar, DollarSign, Plus } from "lucide-react";
+import { BookmarkCheck, MapPin, Building2, Calendar, DollarSign, Plus, Info } from "lucide-react";
+import Link from "next/link";
 import type { NormalizedJob } from "@/types/jobs";
 
 function decodeEntities(str: string): string {
@@ -16,8 +17,15 @@ function decodeEntities(str: string): string {
     .replace(/&#\d+;/g, (m) => String.fromCharCode(parseInt(m.slice(2, -1))));
 }
 
+interface CompanyTracking {
+  savedJobId: number;
+  jobResultId: number;
+  title: string;
+  status: string;
+}
+
 interface JobCardProps {
-  job: NormalizedJob & { dbId?: number };
+  job: NormalizedJob & { dbId?: number; companyTracking?: CompanyTracking[] | null };
   isSaved?: boolean;
   onSave?: () => void;
   onUnsave?: () => void;
@@ -128,6 +136,35 @@ export function JobCard({ job, isSaved, onSave, onUnsave, onClick }: JobCardProp
           </Badge>
         )}
       </div>
+
+      {/* Company-level tracking notice */}
+      {job.companyTracking && job.companyTracking.length > 0 && !isSaved && (
+        <div
+          className="mt-2 flex items-start gap-2 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <div>
+            <span>You&apos;re already tracking {job.companyTracking.length === 1 ? "a role" : `${job.companyTracking.length} roles`} at {decodeEntities(job.company)}:</span>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+              {job.companyTracking.slice(0, 3).map((t) => (
+                <Link
+                  key={t.savedJobId}
+                  href="/tracker"
+                  className="underline hover:text-foreground"
+                >
+                  {decodeEntities(t.title)} <span className="capitalize">({t.status.replace(/_/g, " ")})</span>
+                </Link>
+              ))}
+              {job.companyTracking.length > 3 && (
+                <Link href="/tracker" className="underline hover:text-foreground">
+                  +{job.companyTracking.length - 3} more
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

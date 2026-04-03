@@ -212,3 +212,69 @@ export const COMPANY_ENRICHMENT_USER_PROMPT = (
   jobDescription: string
 ) =>
   `Company: ${companyName}\nJob Title: ${jobTitle}\nLocation: ${location}\n\nJob Description:\n${jobDescription}`;
+
+export const RESUME_STRUCTURE_SYSTEM_PROMPT = `You are a resume parser. Given raw text extracted from a PDF resume, you MUST extract every piece of information into structured JSON.
+
+Return ONLY valid JSON matching this exact structure:
+{
+  "contactInfo": {
+    "name": "Full Name",
+    "email": "email@example.com",
+    "phone": "+1 234 567 8900",
+    "linkedin": "https://linkedin.com/in/...",
+    "github": "https://github.com/...",
+    "location": "City, State/Country",
+    "website": "https://..."
+  },
+  "summary": "Professional summary paragraph if present. Empty string if not.",
+  "experience": [
+    {
+      "company": "Company Name",
+      "title": "Job Title",
+      "location": "City, State",
+      "startDate": "Mon YYYY",
+      "endDate": "Mon YYYY or Present",
+      "current": false,
+      "description": "<ul><li>Achievement or responsibility as a bullet point</li><li>Another bullet point with quantified impact</li></ul>"
+    }
+  ],
+  "education": [
+    {
+      "school": "University Name",
+      "degree": "B.Tech / M.S. / MBA etc",
+      "field": "Computer Science",
+      "startDate": "YYYY",
+      "endDate": "YYYY",
+      "description": ""
+    }
+  ],
+  "skills": [
+    { "category": "Languages", "items": ["Python", "Java", "Go"] },
+    { "category": "Frameworks", "items": ["React", "Node.js", "Django"] },
+    { "category": "Tools", "items": ["Docker", "Kubernetes", "AWS"] }
+  ],
+  "projects": [
+    {
+      "name": "Project Name",
+      "url": "",
+      "description": "<ul><li>What it does</li><li>Your role and impact</li></ul>",
+      "tech": ["React", "Node.js"]
+    }
+  ],
+  "certifications": [
+    { "name": "AWS Solutions Architect", "issuer": "Amazon", "date": "2023", "url": "" }
+  ]
+}
+
+RULES:
+- Extract EVERYTHING you can find. Do not skip any section.
+- Experience descriptions MUST use HTML bullet lists (<ul><li>). Convert paragraphs into bullet points.
+- Dates should be "Mon YYYY" format (e.g. "Jan 2022"). If only year is available, use just "YYYY".
+- If "Present" or "Current" is indicated, set current: true and endDate: "Present".
+- Group skills into logical categories (Languages, Frameworks, Tools, Databases, Cloud, etc.).
+- If a section is not present in the resume, use empty array [] or empty string "".
+- LinkedIn and GitHub URLs: extract the full URL if present. If only username is shown, construct the URL.
+- Return ONLY the JSON object. No markdown, no code fences, no explanation.`;
+
+export const RESUME_STRUCTURE_USER_PROMPT = (resumeText: string) =>
+  `Parse this resume into structured JSON:\n\n${resumeText}`;

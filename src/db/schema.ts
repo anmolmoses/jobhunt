@@ -18,6 +18,7 @@ export const resumes = sqliteTable("resumes", {
   fileType: text("file_type").notNull(),
   fileSize: integer("file_size").notNull(),
   parsedText: text("parsed_text"),
+  structuredData: text("structured_data"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),

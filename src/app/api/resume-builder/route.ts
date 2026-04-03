@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
 import { desc, eq } from "drizzle-orm";
-import { createAIProvider } from "@/lib/ai/provider";
+import { structureResume } from "@/lib/resume/structurer";
 
 export async function GET() {
   try {
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     let projects = body.projects || [];
     let certifications = body.certifications || [];
 
-    // If fromResumeId is provided, parse the uploaded resume into structured data
+    // If fromResumeId is provided, use the pre-stored structured data
     if (body.fromResumeId) {
       const resume = db
         .select()
@@ -49,38 +49,31 @@ export async function POST(request: NextRequest) {
         .where(eq(schema.resumes.id, body.fromResumeId))
         .get();
 
-      if (resume?.parsedText) {
-        try {
-          const aiProvider = await createAIProvider();
-          const response = await aiProvider.complete({
-            messages: [
-              {
-                role: "system",
-                content: `You are a resume parser. Given raw resume text, extract structured data as JSON with these fields:
-{
-  "contactInfo": { "name": "", "email": "", "phone": "", "linkedin": "", "github": "", "location": "", "website": "" },
-  "summary": "professional summary text",
-  "experience": [{ "company": "", "title": "", "location": "", "startDate": "", "endDate": "", "current": false, "description": "HTML with <ul><li> bullets" }],
-  "education": [{ "school": "", "degree": "", "field": "", "startDate": "", "endDate": "", "description": "" }],
-  "skills": [{ "category": "category name", "items": ["skill1", "skill2"] }],
-  "projects": [{ "name": "", "url": "", "description": "HTML", "tech": ["tech1"] }],
-  "certifications": [{ "name": "", "issuer": "", "date": "", "url": "" }]
-}
-Extract everything you can find. Use HTML bullet lists for experience descriptions. Return ONLY valid JSON.`
-              },
-              { role: "user", content: resume.parsedText.slice(0, 8000) },
-            ],
-            maxTokens: 4096,
-            temperature: 0.1,
-            responseFormat: "json",
-          });
+      if (resume) {
+        let parsed = null;
 
-          let jsonStr = response.trim();
-          if (jsonStr.startsWith("```")) {
-            jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+        // Prefer pre-stored structured data (instant)
+        if (resume.structuredData) {
+          try {
+            parsed = JSON.parse(resume.structuredData);
+          } catch { /* fall through to AI parsing */ }
+        }
+
+        // Fallback: structure on the fly for resumes uploaded before this feature
+        if (!parsed && resume.parsedText) {
+          try {
+            parsed = await structureResume(resume.parsedText);
+            // Backfill the structured data so next time it's instant
+            db.update(schema.resumes)
+              .set({ structuredData: JSON.stringify(parsed) })
+              .where(eq(schema.resumes.id, resume.id))
+              .run();
+          } catch (e) {
+            console.error("Failed to structure resume:", e);
           }
-          const parsed = JSON.parse(jsonStr);
+        }
 
+        if (parsed) {
           contactInfo = parsed.contactInfo || contactInfo;
           summary = parsed.summary || summary;
           experience = parsed.experience || experience;
@@ -88,9 +81,6 @@ Extract everything you can find. Use HTML bullet lists for experience descriptio
           skills = parsed.skills || skills;
           projects = parsed.projects || projects;
           certifications = parsed.certifications || certifications;
-        } catch (e) {
-          console.error("Failed to parse resume into structured data:", e);
-          // Continue with empty build
         }
       }
     }

@@ -19,8 +19,8 @@ AI-powered, self-hosted job hunting application.
 ## Project Structure
 - `src/app/` — Next.js App Router pages and API routes
 - `src/db/` — Database connection (`index.ts`) and Drizzle schema (`schema.ts`)
-- `src/lib/` — Core logic: `ai/`, `jobs/`, `resume/`, `encryption.ts`, `settings.ts`
-- `src/components/` — UI components: `ui/` (primitives), `layout/`, `resume/`, `preferences/`, `jobs/`, `dashboard/`, `settings/`
+- `src/lib/` — Core logic: `ai/`, `jobs/`, `resume/`, `company/`, `firecrawl/`, `gamification/`, `geo/`, `cron/`, `encryption.ts`, `settings.ts`
+- `src/components/` — UI components: `ui/` (primitives), `layout/`, `resume/`, `preferences/`, `jobs/`, `dashboard/`, `settings/`, `gamification/`
 - `src/types/` — TypeScript type definitions
 - `data/` — SQLite database (gitignored)
 - `uploads/` — Resume files (gitignored)
@@ -34,4 +34,4 @@ AI-powered, self-hosted job hunting application.
 
 ## Environment
 - `ENCRYPTION_SECRET` — Required. 32-byte hex key for API key encryption at rest
-- Optional: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `JSEARCH_API_KEY`, `ADZUNA_APP_ID`, `ADZUNA_APP_KEY`
+- Optional: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `JSEARCH_API_KEY`, `ADZUNA_APP_ID`, `ADZUNA_APP_KEY`, `FIRECRAWL_API_URL`, `FIRECRAWL_API_KEY`

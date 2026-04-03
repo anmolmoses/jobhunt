@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
 import { parseResume } from "@/lib/resume/parser";
+import { structureResume } from "@/lib/resume/structurer";
 import { recordAction } from "@/lib/gamification";
 import { v4 as uuidv4 } from "uuid";
 import path from "path";
@@ -56,6 +57,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to parse file content" }, { status: 422 });
     }
 
+    // Structure resume via AI (best-effort — don't fail upload if this fails)
+    let structuredData: string | null = null;
+    try {
+      const structured = await structureResume(parsedText);
+      structuredData = JSON.stringify(structured);
+    } catch (e) {
+      console.error("Resume structuring failed (non-fatal):", e);
+    }
+
     // Store in database
     const result = db
       .insert(schema.resumes)
@@ -65,6 +75,7 @@ export async function POST(request: NextRequest) {
         fileType: ext.slice(1),
         fileSize: file.size,
         parsedText,
+        structuredData,
       })
       .returning()
       .get();

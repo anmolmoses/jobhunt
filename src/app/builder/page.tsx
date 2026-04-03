@@ -171,7 +171,7 @@ export default function BuilderListPage() {
                 <div>
                   <p className="text-sm font-medium">Import from {r.fileName}</p>
                   <p className="text-xs text-muted-foreground">
-                    AI will extract sections from your uploaded resume
+                    Import all sections from your uploaded resume
                   </p>
                 </div>
               </button>

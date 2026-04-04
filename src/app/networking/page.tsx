@@ -12,7 +12,9 @@ import {
   Loader2, Users, Send, Link2, Mail, Calendar, MessageSquare,
   Trash2, ExternalLink, Clock, Upload, Search, Building2, UserCheck,
   ArrowUpDown, Filter, Briefcase, CheckCircle, ChevronLeft, ChevronRight,
+  Share2,
 } from "lucide-react";
+import { NetworkMap } from "@/components/networking/network-map";
 
 // ============ Types ============
 
@@ -94,7 +96,7 @@ const CHANNEL_ICONS: Record<string, typeof Link2> = {
 // ============ Main Page ============
 
 export default function NetworkingPage() {
-  const [activeTab, setActiveTab] = useState<"linkedin" | "outreach">("linkedin");
+  const [activeTab, setActiveTab] = useState<"linkedin" | "map" | "outreach">("linkedin");
 
   return (
     <div className="space-y-6">
@@ -114,7 +116,18 @@ export default function NetworkingPage() {
           }`}
         >
           <Users className="h-4 w-4" />
-          LinkedIn Connections
+          Connections
+        </button>
+        <button
+          onClick={() => setActiveTab("map")}
+          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+            activeTab === "map"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Share2 className="h-4 w-4" />
+          Network Map
         </button>
         <button
           onClick={() => setActiveTab("outreach")}
@@ -125,11 +138,13 @@ export default function NetworkingPage() {
           }`}
         >
           <Send className="h-4 w-4" />
-          Outreach Tracking
+          Outreach
         </button>
       </div>
 
-      {activeTab === "linkedin" ? <LinkedInTab /> : <OutreachTab />}
+      {activeTab === "linkedin" && <LinkedInTab />}
+      {activeTab === "map" && <NetworkMap />}
+      {activeTab === "outreach" && <OutreachTab />}
     </div>
   );
 }

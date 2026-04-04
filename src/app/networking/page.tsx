@@ -1,16 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import {
   Loader2, Users, Send, Link2, Mail, Calendar, MessageSquare,
-  Trash2, ExternalLink, Clock,
+  Trash2, ExternalLink, Clock, Upload, Search, Building2, UserCheck,
+  ArrowUpDown, Filter, Briefcase, CheckCircle, ChevronLeft, ChevronRight,
 } from "lucide-react";
+
+// ============ Types ============
 
 interface OutreachRecord {
   id: number;
@@ -38,6 +42,40 @@ interface OutreachRecord {
   };
 }
 
+interface LinkedInConnection {
+  id: number;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  profileUrl: string | null;
+  email: string | null;
+  company: string | null;
+  position: string | null;
+  connectedOn: string | null;
+  hasMessages: boolean;
+  messageCount: number;
+  messageDirection: string | null;
+  lastMessageDate: string | null;
+}
+
+interface LinkedInImportStatus {
+  imported: boolean;
+  importId?: number;
+  fileName?: string;
+  connectionsCount?: number;
+  messagesCount?: number;
+  profileName?: string;
+  profileHeadline?: string;
+  importedAt?: string;
+}
+
+interface CompanyCount {
+  company: string;
+  count: number;
+}
+
+// ============ Constants ============
+
 const STATUS_OPTIONS = [
   { value: "planned", label: "Planned", color: "bg-muted text-muted-foreground" },
   { value: "sent", label: "Sent", color: "bg-foreground/10 text-foreground" },
@@ -53,7 +91,416 @@ const CHANNEL_ICONS: Record<string, typeof Link2> = {
   other: MessageSquare,
 };
 
+// ============ Main Page ============
+
 export default function NetworkingPage() {
+  const [activeTab, setActiveTab] = useState<"linkedin" | "outreach">("linkedin");
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Networking</h1>
+        <p className="text-muted-foreground mt-1">Your LinkedIn connections and outreach tracking</p>
+      </div>
+
+      {/* Tab Switcher */}
+      <div className="flex gap-1 p-1 rounded-lg bg-muted w-fit">
+        <button
+          onClick={() => setActiveTab("linkedin")}
+          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+            activeTab === "linkedin"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Users className="h-4 w-4" />
+          LinkedIn Connections
+        </button>
+        <button
+          onClick={() => setActiveTab("outreach")}
+          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+            activeTab === "outreach"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Send className="h-4 w-4" />
+          Outreach Tracking
+        </button>
+      </div>
+
+      {activeTab === "linkedin" ? <LinkedInTab /> : <OutreachTab />}
+    </div>
+  );
+}
+
+// ============ LinkedIn Tab ============
+
+function LinkedInTab() {
+  const { toast } = useToast();
+  const [importStatus, setImportStatus] = useState<LinkedInImportStatus | null>(null);
+  const [connections, setConnections] = useState<LinkedInConnection[]>([]);
+  const [companies, setCompanies] = useState<CompanyCount[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const [search, setSearch] = useState("");
+  const [companyFilter, setCompanyFilter] = useState("");
+  const [matchSavedJobs, setMatchSavedJobs] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Load import status
+  useEffect(() => {
+    fetch("/api/linkedin/import")
+      .then((res) => res.json())
+      .then((data) => {
+        setImportStatus(data);
+        if (data.imported) loadConnections("", "", false, 1);
+        else setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const loadConnections = useCallback(
+    async (searchVal: string, companyVal: string, matchJobs: boolean, pageVal: number) => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (searchVal) params.set("search", searchVal);
+        if (companyVal) params.set("company", companyVal);
+        if (matchJobs) params.set("matchSavedJobs", "true");
+        params.set("page", String(pageVal));
+        params.set("limit", "50");
+
+        const res = await fetch(`/api/linkedin/connections?${params}`);
+        const data = await res.json();
+        setConnections(data.connections || []);
+        setCompanies(data.companies || []);
+        setTotal(data.total || 0);
+        setTotalPages(data.totalPages || 1);
+      } catch {
+        toast("Failed to load connections", "error");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [toast]
+  );
+
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    setPage(1);
+    clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      loadConnections(value, companyFilter, matchSavedJobs, 1);
+    }, 300);
+  };
+
+  const handleCompanyFilter = (value: string) => {
+    setCompanyFilter(value);
+    setPage(1);
+    loadConnections(search, value, matchSavedJobs, 1);
+  };
+
+  const handleMatchSavedJobs = () => {
+    const next = !matchSavedJobs;
+    setMatchSavedJobs(next);
+    setPage(1);
+    setCompanyFilter("");
+    setSearch("");
+    loadConnections("", "", next, 1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    loadConnections(search, companyFilter, matchSavedJobs, newPage);
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/linkedin/import", { method: "POST", body: formData });
+      const data = await res.json();
+
+      if (data.error) {
+        toast(data.error, "error");
+        return;
+      }
+
+      toast(`Imported ${data.stats.connections} connections and ${data.stats.conversations} conversations`, "success");
+      setImportStatus({
+        imported: true,
+        importId: data.importId,
+        fileName: file.name,
+        connectionsCount: data.stats.connections,
+        messagesCount: data.stats.conversations,
+        profileName: data.stats.profileName,
+        profileHeadline: data.stats.profileHeadline,
+        importedAt: new Date().toISOString(),
+      });
+      loadConnections("", "", false, 1);
+    } catch {
+      toast("Failed to import LinkedIn data", "error");
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleClearData = async () => {
+    try {
+      await fetch("/api/linkedin/import", { method: "DELETE" });
+      setImportStatus({ imported: false });
+      setConnections([]);
+      setCompanies([]);
+      setTotal(0);
+      toast("LinkedIn data cleared", "success");
+    } catch {
+      toast("Failed to clear data", "error");
+    }
+  };
+
+  // No import yet — show upload UI
+  if (!importStatus?.imported && !loading) {
+    return (
+      <Card>
+        <CardContent className="py-12">
+          <div className="text-center max-w-md mx-auto space-y-4">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+              <Upload className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">Import LinkedIn Connections</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Upload your LinkedIn data export to see your connections, correlate them with companies you&apos;re applying to, and track outreach.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Button onClick={() => fileInputRef.current?.click()} disabled={importing}>
+                {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                {importing ? "Importing..." : "Upload LinkedIn Export (.zip)"}
+              </Button>
+              <input ref={fileInputRef} type="file" accept=".zip" onChange={handleImport} className="hidden" />
+              <p className="text-xs text-muted-foreground">
+                Go to LinkedIn &rarr; Settings &rarr; Data Privacy &rarr; Get a copy of your data
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Import Status Bar */}
+      {importStatus?.imported && (
+        <Card>
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="h-5 w-5 text-foreground" />
+                <div>
+                  <p className="text-sm font-medium">
+                    {importStatus.connectionsCount} connections imported
+                    {importStatus.profileName && (
+                      <span className="text-muted-foreground font-normal"> for {importStatus.profileName}</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {importStatus.fileName}
+                    {importStatus.importedAt && (
+                      <> &middot; Imported {new Date(importStatus.importedAt).toLocaleDateString()}</>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+                  {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  Re-import
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handleClearData}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+                <input ref={fileInputRef} type="file" accept=".zip" onChange={handleImport} className="hidden" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name, company, or position..."
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select
+          value={companyFilter}
+          onChange={(e) => handleCompanyFilter(e.target.value)}
+          className="w-48"
+        >
+          <option value="">All Companies</option>
+          {companies.map((c) => (
+            <option key={c.company} value={c.company}>
+              {c.company} ({c.count})
+            </option>
+          ))}
+        </Select>
+        <Button
+          variant={matchSavedJobs ? "default" : "outline"}
+          size="sm"
+          onClick={handleMatchSavedJobs}
+          className="whitespace-nowrap"
+        >
+          <Briefcase className="h-4 w-4" />
+          {matchSavedJobs ? "Showing matches" : "Match saved jobs"}
+        </Button>
+      </div>
+
+      {/* Results Count */}
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <span>{total} connection{total !== 1 ? "s" : ""}{matchSavedJobs ? " at companies you're tracking" : ""}</span>
+        {totalPages > 1 && (
+          <span>Page {page} of {totalPages}</span>
+        )}
+      </div>
+
+      {/* Connections List */}
+      {loading ? (
+        <div className="flex items-center justify-center h-32">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : connections.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <Users className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+            {matchSavedJobs ? (
+              <div>
+                <p className="font-medium">No matching connections found</p>
+                <p className="text-sm mt-1">None of your connections work at companies you&apos;ve saved jobs from. Save more jobs or import more connections.</p>
+              </div>
+            ) : search || companyFilter ? (
+              <p>No connections match your filters</p>
+            ) : (
+              <p>No connections imported yet</p>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {connections.map((conn) => (
+            <Card key={conn.id}>
+              <CardContent className="py-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted shrink-0">
+                      <Users className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-sm truncate">{conn.fullName}</h3>
+                      {conn.position && (
+                        <p className="text-xs text-muted-foreground truncate">{conn.position}</p>
+                      )}
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        {conn.company && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Building2 className="h-3 w-3" />
+                            {conn.company}
+                          </span>
+                        )}
+                        {conn.connectedOn && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {conn.connectedOn}
+                          </span>
+                        )}
+                        {conn.hasMessages && (
+                          <Badge variant="secondary" className="text-xs">
+                            <MessageSquare className="h-3 w-3 mr-1" />
+                            {conn.messageCount} msg{conn.messageCount !== 1 ? "s" : ""}
+                          </Badge>
+                        )}
+                        {conn.email && (
+                          <Badge variant="outline" className="text-xs">
+                            <Mail className="h-3 w-3 mr-1" />
+                            Email available
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {conn.profileUrl && (
+                      <a href={conn.profileUrl} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="icon" className="h-8 w-8">
+                          <Link2 className="h-4 w-4" />
+                        </Button>
+                      </a>
+                    )}
+                    {conn.email && (
+                      <a href={`mailto:${conn.email}`}>
+                        <Button variant="outline" size="icon" className="h-8 w-8">
+                          <Mail className="h-4 w-4" />
+                        </Button>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(page - 1)}
+            disabled={page <= 1}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            {page} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(page + 1)}
+            disabled={page >= totalPages}
+          >
+            Next
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ Outreach Tab ============
+
+function OutreachTab() {
   const { toast } = useToast();
   const [records, setRecords] = useState<OutreachRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,12 +584,7 @@ export default function NetworkingPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Networking</h1>
-        <p className="text-muted-foreground mt-1">Track your outreach to contacts at target companies</p>
-      </div>
-
+    <div className="space-y-4">
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>

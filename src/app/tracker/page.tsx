@@ -16,6 +16,8 @@ import {
   FileText, Users, Briefcase, Target, ArrowRight, Search,
 } from "lucide-react";
 import Link from "next/link";
+import { JobDetailModal } from "@/components/jobs/job-detail-modal";
+import type { NormalizedJob } from "@/types/jobs";
 
 interface SavedJob {
   id: number;
@@ -28,13 +30,24 @@ interface SavedJob {
   createdAt: string;
   updatedAt: string;
   job: {
+    id: number;
+    externalId: string | null;
     title: string;
     company: string;
     location: string | null;
     salary: string | null;
+    salaryMin: number | null;
+    salaryMax: number | null;
+    description: string | null;
+    jobType: string | null;
+    isRemote: boolean;
     applyUrl: string | null;
     companyLogo: string | null;
+    postedAt: string | null;
+    tags: string[];
     provider: string;
+    relevanceScore: number | null;
+    dedupeKey: string | null;
   };
 }
 
@@ -105,6 +118,32 @@ export default function TrackerPage() {
   const [activeTab, setActiveTab] = useState<"pipeline" | "timeline" | "interviews">("pipeline");
   const [interviewModal, setInterviewModal] = useState<number | null>(null); // savedJobId
   const [newInterview, setNewInterview] = useState({ type: "phone_screen", scheduledAt: "", interviewerName: "", meetingLink: "", notes: "" });
+  const [selectedJob, setSelectedJob] = useState<(NormalizedJob & { dbId?: number }) | null>(null);
+  const [selectedSavedId, setSelectedSavedId] = useState<number | null>(null);
+
+  const openJobDetail = (item: SavedJob) => {
+    setSelectedJob({
+      externalId: item.job.externalId || String(item.job.id),
+      provider: item.job.provider as NormalizedJob["provider"],
+      title: item.job.title,
+      company: item.job.company,
+      location: item.job.location,
+      salary: item.job.salary,
+      salaryMin: item.job.salaryMin,
+      salaryMax: item.job.salaryMax,
+      description: item.job.description,
+      jobType: item.job.jobType,
+      isRemote: item.job.isRemote,
+      applyUrl: item.job.applyUrl,
+      companyLogo: item.job.companyLogo,
+      postedAt: item.job.postedAt,
+      tags: item.job.tags || [],
+      relevanceScore: item.job.relevanceScore,
+      dedupeKey: item.job.dedupeKey || "",
+      dbId: item.job.id,
+    });
+    setSelectedSavedId(item.id);
+  };
 
   useEffect(() => { loadData(); }, []);
 
@@ -281,7 +320,7 @@ export default function TrackerPage() {
                 </div>
                 <div className="space-y-2 min-h-[200px]">
                   {columnJobs.map((item) => (
-                    <Card key={item.id} className="hover:shadow-md transition-shadow">
+                    <Card key={item.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => openJobDetail(item)}>
                       <CardContent className="p-3 space-y-2">
                         <div className="flex items-start gap-2">
                           {item.job.companyLogo ? (
@@ -316,7 +355,7 @@ export default function TrackerPage() {
                         )}
 
                         {/* Quick actions */}
-                        <div className="flex gap-1 pt-1">
+                        <div className="flex gap-1 pt-1" onClick={(e) => e.stopPropagation()}>
                           {col.key === "saved" && (
                             <Button size="sm" className="h-6 text-[10px] px-2" onClick={() => updateJobStatus(item.id, "applied")}>
                               Mark Applied
@@ -498,6 +537,14 @@ export default function TrackerPage() {
           )}
         </div>
       )}
+
+      {/* Job Detail Modal */}
+      <JobDetailModal
+        job={selectedJob}
+        open={!!selectedJob}
+        onOpenChange={(open) => { if (!open) { setSelectedJob(null); setSelectedSavedId(null); } }}
+        isSaved={true}
+      />
 
       {/* Interview Scheduling Modal */}
       <Dialog open={!!interviewModal} onOpenChange={(open) => !open && setInterviewModal(null)}>

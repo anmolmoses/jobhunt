@@ -50,6 +50,7 @@ export default function SettingsPage() {
     adzuna_app_key: "",
     adzuna_country: "us",
     happenstance_api_key: "",
+    happenstance_enabled: "true",
     logodev_api_key: "",
     firecrawl_api_url: "",
     firecrawl_api_key: "",
@@ -114,6 +115,7 @@ export default function SettingsPage() {
       payload.claude_model = settings.claude_model;
       payload.openai_model = settings.openai_model;
       payload.adzuna_country = settings.adzuna_country;
+      payload.happenstance_enabled = settings.happenstance_enabled;
       if (settings.firecrawl_api_url) payload.firecrawl_api_url = settings.firecrawl_api_url;
 
       const res = await fetch("/api/settings", {
@@ -346,25 +348,57 @@ export default function SettingsPage() {
           <CardDescription>Find connections at companies you&apos;re interested in</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>
-              Happenstance API Key
-              <EnvBadge field="happenstance_api_key" />
-            </Label>
-            <Input
-              type="password"
-              placeholder="Bearer token from developer.happenstance.ai..."
-              value={settings.happenstance_api_key}
-              onChange={(e) => updateField("happenstance_api_key", e.target.value)}
-            />
-            {envSources.has("happenstance_api_key") ? (
-              <p className="text-xs text-muted-foreground">Loaded from HAPPENSTANCE_API_KEY environment variable</p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Find contacts at companies via your network. Get API key from developer.happenstance.ai
-              </p>
-            )}
+          <div className="rounded-lg border p-3 bg-muted/50 space-y-1">
+            <p className="text-sm font-medium">LinkedIn Import</p>
+            <p className="text-xs text-muted-foreground">
+              Always available. Import your LinkedIn data export (.zip) in the Networking tab to see your connections and match them with companies you&apos;re applying to.
+            </p>
           </div>
+
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div>
+              <p className="text-sm font-medium">Happenstance Contact Discovery</p>
+              <p className="text-xs text-muted-foreground">
+                {settings.happenstance_enabled === "true"
+                  ? "Enabled — Find Contacts button appears on job details"
+                  : "Disabled — only LinkedIn connections are shown"}
+              </p>
+            </div>
+            <Button
+              variant={settings.happenstance_enabled === "true" ? "default" : "outline"}
+              size="sm"
+              onClick={() =>
+                updateField(
+                  "happenstance_enabled",
+                  settings.happenstance_enabled === "true" ? "false" : "true"
+                )
+              }
+            >
+              {settings.happenstance_enabled === "true" ? "Enabled" : "Disabled"}
+            </Button>
+          </div>
+
+          {settings.happenstance_enabled === "true" && (
+            <div className="space-y-2">
+              <Label>
+                Happenstance API Key
+                <EnvBadge field="happenstance_api_key" />
+              </Label>
+              <Input
+                type="password"
+                placeholder="Bearer token from developer.happenstance.ai..."
+                value={settings.happenstance_api_key}
+                onChange={(e) => updateField("happenstance_api_key", e.target.value)}
+              />
+              {envSources.has("happenstance_api_key") ? (
+                <p className="text-xs text-muted-foreground">Loaded from HAPPENSTANCE_API_KEY environment variable</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Find contacts at companies via your network. Get API key from developer.happenstance.ai
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>
@@ -829,7 +863,7 @@ function DataManagement() {
     { target: "saved_jobs", label: "Delete Saved Jobs Only", description: "Removes your bookmarked/saved jobs. Search results are kept." },
     { target: "resumes", label: "Delete All Resumes & Analyses", description: "Removes all uploaded resumes, parsed text, and AI analyses." },
     { target: "preferences", label: "Reset Preferences", description: "Clears all job preferences. You can re-generate them from your resume." },
-    { target: "networking", label: "Delete Networking Data", description: "Removes all Happenstance contacts and outreach tracking records." },
+    { target: "networking", label: "Delete Networking Data", description: "Removes LinkedIn imports, Happenstance contacts, and outreach tracking records." },
     { target: "company_cache", label: "Clear Company Cache", description: "Clears cached salary data, company profiles, and geocode results. They'll be re-fetched on next view." },
   ];
 

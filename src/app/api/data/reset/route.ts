@@ -45,7 +45,10 @@ export async function POST(request: NextRequest) {
       case "networking": {
         db.delete(schema.outreachTracking).run();
         db.delete(schema.networkContacts).run();
-        return NextResponse.json({ success: true, message: "All networking data deleted" });
+        db.delete(schema.linkedinMessages).run();
+        db.delete(schema.linkedinConnections).run();
+        db.delete(schema.linkedinImports).run();
+        return NextResponse.json({ success: true, message: "All networking data deleted (including LinkedIn imports)" });
       }
 
       case "company_cache": {
@@ -63,6 +66,9 @@ export async function POST(request: NextRequest) {
         // Nuclear option — delete all data
         db.delete(schema.outreachTracking).run();
         db.delete(schema.networkContacts).run();
+        db.delete(schema.linkedinMessages).run();
+        db.delete(schema.linkedinConnections).run();
+        db.delete(schema.linkedinImports).run();
         db.delete(schema.savedJobs).run();
         db.delete(schema.jobResults).run();
         db.delete(schema.jobSearches).run();

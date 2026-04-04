@@ -157,6 +157,57 @@ export const companyEnrichment = sqliteTable("company_enrichment", {
     .default(sql`(datetime('now'))`),
 });
 
+// LinkedIn data imports — tracks each zip import
+export const linkedinImports = sqliteTable("linkedin_imports", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  fileName: text("file_name").notNull(),
+  connectionsCount: integer("connections_count").notNull().default(0),
+  messagesCount: integer("messages_count").notNull().default(0),
+  companyFollowsCount: integer("company_follows_count").notNull().default(0),
+  profileName: text("profile_name"),
+  profileHeadline: text("profile_headline"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// LinkedIn connections — imported from data export
+export const linkedinConnections = sqliteTable("linkedin_connections", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  importId: integer("import_id")
+    .notNull()
+    .references(() => linkedinImports.id, { onDelete: "cascade" }),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  fullName: text("full_name").notNull(),
+  profileUrl: text("profile_url"),
+  email: text("email"),
+  company: text("company"),
+  normalizedCompany: text("normalized_company"), // for matching against saved jobs
+  position: text("position"),
+  connectedOn: text("connected_on"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// LinkedIn messages — lightweight: just tracks unique conversation partners
+export const linkedinMessages = sqliteTable("linkedin_messages", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  importId: integer("import_id")
+    .notNull()
+    .references(() => linkedinImports.id, { onDelete: "cascade" }),
+  conversationId: text("conversation_id").notNull(),
+  participantName: text("participant_name").notNull(),
+  participantProfileUrl: text("participant_profile_url"),
+  lastMessageDate: text("last_message_date"),
+  messageCount: integer("message_count").notNull().default(1),
+  direction: text("direction"), // "inbound", "outbound", "both"
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 // Contacts found via Happenstance for a company
 export const networkContacts = sqliteTable("network_contacts", {
   id: integer("id").primaryKey({ autoIncrement: true }),

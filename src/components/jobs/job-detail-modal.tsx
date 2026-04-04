@@ -49,6 +49,18 @@ interface NetworkContact {
   outreachSent?: boolean;
 }
 
+interface LinkedInMatch {
+  id: number;
+  fullName: string;
+  profileUrl: string | null;
+  email: string | null;
+  company: string | null;
+  position: string | null;
+  connectedOn: string | null;
+  hasMessages: boolean;
+  messageCount: number;
+}
+
 interface JobDetailModalProps {
   job: (NormalizedJob & { dbId?: number }) | null;
   open: boolean;
@@ -75,16 +87,34 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
   const [contactsLoading, setContactsLoading] = useState(false);
   const [contactsError, setContactsError] = useState<string | null>(null);
   const [contactsSearched, setContactsSearched] = useState(false);
+  const [linkedinMatches, setLinkedinMatches] = useState<LinkedInMatch[]>([]);
+  const [linkedinLoading, setLinkedinLoading] = useState(false);
+  const [happenstanceEnabled, setHappenstanceEnabled] = useState(false);
 
-  // Fetch company enrichment when modal opens
+  // Fetch company enrichment + LinkedIn matches when modal opens
   useEffect(() => {
     if (!open || !job) {
       setCompanyData(null);
       setContacts([]);
       setContactsSearched(false);
       setContactsError(null);
+      setLinkedinMatches([]);
       return;
     }
+
+    // Fetch LinkedIn connections at this company
+    setLinkedinLoading(true);
+    fetch(`/api/linkedin/connections?company=${encodeURIComponent(job.company)}&limit=20`)
+      .then((res) => res.json())
+      .then((data) => setLinkedinMatches(data.connections || []))
+      .catch(() => setLinkedinMatches([]))
+      .finally(() => setLinkedinLoading(false));
+
+    // Check if Happenstance is enabled
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => setHappenstanceEnabled(data.happenstance_enabled !== "false"))
+      .catch(() => {});
 
     setEnrichLoading(true);
     fetch("/api/company/enrich", {
@@ -346,7 +376,7 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
                 <Users className="h-4 w-4 text-primary" />
                 Your Network at {job.company}
               </div>
-              {!contactsSearched && (
+              {happenstanceEnabled && !contactsSearched && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -363,105 +393,171 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
               )}
             </div>
 
-            {contactsError && (
-              <p className="text-sm text-destructive">{contactsError}</p>
-            )}
-
-            {contactsSearched && contacts.length === 0 && (
-              <p className="text-sm text-muted-foreground">No connections found at this company.</p>
-            )}
-
-            {contacts.length > 0 && (
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {contacts.map((contact) => {
-                  const mutuals = (() => {
-                    try { return JSON.parse(contact.mutualConnections || "[]"); }
-                    catch { return []; }
-                  })();
-                  return (
-                    <div key={contact.id} className="flex items-start justify-between gap-3 rounded-lg border p-3">
-                      <div className="flex items-start gap-2 min-w-0">
-                        {contact.personImageUrl ? (
-                          <img src={contact.personImageUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
-                        ) : (
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                        )}
+            {/* LinkedIn Connections */}
+            {linkedinLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Checking LinkedIn connections...
+              </div>
+            ) : linkedinMatches.length > 0 ? (
+              <div className="space-y-2 mb-3">
+                <p className="text-xs font-medium text-muted-foreground">
+                  LinkedIn Connections ({linkedinMatches.length})
+                </p>
+                <div className="space-y-2 max-h-36 overflow-y-auto">
+                  {linkedinMatches.map((m) => (
+                    <div key={m.id} className="flex items-center justify-between gap-3 rounded-lg border p-2.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted shrink-0">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                        </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{contact.personName}</p>
-                          {contact.personTitle && (
-                            <p className="text-xs text-muted-foreground truncate">{contact.personTitle}</p>
+                          <p className="text-sm font-medium truncate">{m.fullName}</p>
+                          {m.position && (
+                            <p className="text-xs text-muted-foreground truncate">{m.position}</p>
                           )}
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {contact.connectionType && (
-                              <Badge variant="secondary" className="text-xs">
-                                {contact.connectionType === "direct" ? "1st" : "2nd"} degree
-                              </Badge>
-                            )}
-                            {contact.introducerName && (
+                          <div className="flex gap-1 mt-0.5">
+                            <Badge variant="secondary" className="text-xs">1st degree</Badge>
+                            {m.hasMessages && (
                               <Badge variant="outline" className="text-xs">
-                                via {contact.introducerName}
-                              </Badge>
-                            )}
-                            {mutuals.length > 0 && (
-                              <Badge variant="outline" className="text-xs">
-                                {mutuals.length} mutual{mutuals.length > 1 ? "s" : ""}
+                                {m.messageCount} msg{m.messageCount !== 1 ? "s" : ""}
                               </Badge>
                             )}
                           </div>
                         </div>
                       </div>
                       <div className="flex gap-1 shrink-0">
-                        {contact.personLinkedin && (
-                          <a
-                            href={contact.personLinkedin}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              title="View on LinkedIn"
-                            >
+                        {m.profileUrl && (
+                          <a href={m.profileUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="View on LinkedIn">
                               <Link2 className="h-3.5 w-3.5" />
                             </Button>
                           </a>
                         )}
-                        {contact.personEmail && (
-                          <a href={`mailto:${contact.personEmail}`} onClick={(e) => e.stopPropagation()}>
+                        {m.email && (
+                          <a href={`mailto:${m.email}`} onClick={(e) => e.stopPropagation()}>
                             <Button variant="ghost" size="icon" className="h-8 w-8" title="Send email">
                               <Mail className="h-3.5 w-3.5" />
                             </Button>
                           </a>
                         )}
-                        {!contact.outreachSent ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleTrackOutreach(
-                                contact.id,
-                                contact.personLinkedin ? "linkedin" : contact.personEmail ? "email" : "other"
-                              );
-                            }}
-                          >
-                            <Send className="h-3 w-3" />
-                            Track
-                          </Button>
-                        ) : (
-                          <Badge variant="success" className="text-xs h-8 flex items-center">
-                            Tracked
-                          </Badge>
-                        )}
                       </div>
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
+              </div>
+            ) : !linkedinLoading && !contactsSearched && contacts.length === 0 && !contactsError ? (
+              <p className="text-sm text-muted-foreground mb-3">
+                No LinkedIn connections at this company.
+                {!happenstanceEnabled && " Import your LinkedIn data in the Networking tab to see connections here."}
+              </p>
+            ) : null}
+
+            {/* Happenstance Contacts */}
+            {contactsError && (
+              <p className="text-sm text-destructive">{contactsError}</p>
+            )}
+
+            {contactsSearched && contacts.length === 0 && linkedinMatches.length === 0 && (
+              <p className="text-sm text-muted-foreground">No connections found at this company.</p>
+            )}
+
+            {contacts.length > 0 && (
+              <div className="space-y-2">
+                {linkedinMatches.length > 0 && (
+                  <p className="text-xs font-medium text-muted-foreground">Happenstance Results ({contacts.length})</p>
+                )}
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {contacts.map((contact) => {
+                    const mutuals = (() => {
+                      try { return JSON.parse(contact.mutualConnections || "[]"); }
+                      catch { return []; }
+                    })();
+                    return (
+                      <div key={contact.id} className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                        <div className="flex items-start gap-2 min-w-0">
+                          {contact.personImageUrl ? (
+                            <img src={contact.personImageUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+                          ) : (
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                              <Users className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{contact.personName}</p>
+                            {contact.personTitle && (
+                              <p className="text-xs text-muted-foreground truncate">{contact.personTitle}</p>
+                            )}
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {contact.connectionType && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {contact.connectionType === "direct" ? "1st" : "2nd"} degree
+                                </Badge>
+                              )}
+                              {contact.introducerName && (
+                                <Badge variant="outline" className="text-xs">
+                                  via {contact.introducerName}
+                                </Badge>
+                              )}
+                              {mutuals.length > 0 && (
+                                <Badge variant="outline" className="text-xs">
+                                  {mutuals.length} mutual{mutuals.length > 1 ? "s" : ""}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          {contact.personLinkedin && (
+                            <a
+                              href={contact.personLinkedin}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                title="View on LinkedIn"
+                              >
+                                <Link2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </a>
+                          )}
+                          {contact.personEmail && (
+                            <a href={`mailto:${contact.personEmail}`} onClick={(e) => e.stopPropagation()}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" title="Send email">
+                                <Mail className="h-3.5 w-3.5" />
+                              </Button>
+                            </a>
+                          )}
+                          {!contact.outreachSent ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTrackOutreach(
+                                  contact.id,
+                                  contact.personLinkedin ? "linkedin" : contact.personEmail ? "email" : "other"
+                                );
+                              }}
+                            >
+                              <Send className="h-3 w-3" />
+                              Track
+                            </Button>
+                          ) : (
+                            <Badge variant="success" className="text-xs h-8 flex items-center">
+                              Tracked
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </CardContent>

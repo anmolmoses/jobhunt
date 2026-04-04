@@ -1,10 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
-import { eq } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 import { searchAndWait, isConfigured, type PersonResult } from "@/lib/happenstance/client";
+import { getSetting } from "@/lib/settings";
+import { companiesMatch } from "@/lib/company/match";
 
 function normalizeCompany(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z]/g, "");
+}
+
+/**
+ * Cross-reference a person name against LinkedIn imports to find their profile URL and email.
+ * Uses fuzzy company matching to handle "HARMAN India" vs "HARMAN International" etc.
+ */
+function enrichFromLinkedin(
+  personName: string,
+  companyName: string,
+  linkedinConnections: { fullName: string; profileUrl: string | null; email: string | null; company: string | null }[]
+): { linkedinUrl: string | null; email: string | null } {
+  const normalizedPersonName = normalizeName(personName);
+
+  // First try: match by name AND fuzzy company (most reliable)
+  for (const conn of linkedinConnections) {
+    if (
+      conn.company &&
+      companiesMatch(conn.company, companyName) &&
+      normalizeName(conn.fullName) === normalizedPersonName
+    ) {
+      return { linkedinUrl: conn.profileUrl, email: conn.email };
+    }
+  }
+
+  // Second try: match by name only (person may have changed companies on LinkedIn)
+  for (const conn of linkedinConnections) {
+    if (normalizeName(conn.fullName) === normalizedPersonName) {
+      return { linkedinUrl: conn.profileUrl, email: conn.email };
+    }
+  }
+
+  return { linkedinUrl: null, email: null };
 }
 
 export async function POST(request: NextRequest) {
@@ -15,6 +53,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "companyName is required" }, { status: 400 });
     }
 
+    // Check if Happenstance is enabled
+    const happenstanceEnabled = await getSetting("happenstance_enabled");
+    if (happenstanceEnabled === "false") {
+      return NextResponse.json(
+        { error: "Happenstance is disabled. Enable it in Settings." },
+        { status: 400 }
+      );
+    }
+
     if (!(await isConfigured())) {
       return NextResponse.json(
         { error: "Happenstance API key not configured. Add it in Settings." },
@@ -23,6 +70,23 @@ export async function POST(request: NextRequest) {
     }
 
     const normalized = normalizeCompany(companyName);
+
+    // Load LinkedIn connections for cross-referencing
+    const linkedinImports = db.select().from(schema.linkedinImports).all();
+    let linkedinConnections: { fullName: string; profileUrl: string | null; email: string | null; company: string | null }[] = [];
+    if (linkedinImports.length > 0) {
+      const latestImport = linkedinImports[linkedinImports.length - 1];
+      linkedinConnections = db
+        .select({
+          fullName: schema.linkedinConnections.fullName,
+          profileUrl: schema.linkedinConnections.profileUrl,
+          email: schema.linkedinConnections.email,
+          company: schema.linkedinConnections.company,
+        })
+        .from(schema.linkedinConnections)
+        .where(eq(schema.linkedinConnections.importId, latestImport.id))
+        .all();
+    }
 
     // Check cache first (contacts found in last 7 days)
     const cached = db
@@ -36,8 +100,27 @@ export async function POST(request: NextRequest) {
       const oldest = cached[0];
       const ageMs = Date.now() - new Date(oldest.createdAt).getTime();
       if (ageMs < 7 * 24 * 60 * 60 * 1000) {
+        // Even for cached results, try to enrich missing LinkedIn URLs
+        const enrichedCached = cached.map((c) => {
+          if (!c.personLinkedin || !c.personEmail) {
+            const enriched = enrichFromLinkedin(c.personName, companyName, linkedinConnections);
+            const needsUpdate = (!c.personLinkedin && enriched.linkedinUrl) || (!c.personEmail && enriched.email);
+            if (needsUpdate) {
+              const updates: Record<string, string> = {};
+              if (!c.personLinkedin && enriched.linkedinUrl) updates.personLinkedin = enriched.linkedinUrl;
+              if (!c.personEmail && enriched.email) updates.personEmail = enriched.email;
+              db.update(schema.networkContacts)
+                .set(updates)
+                .where(eq(schema.networkContacts.id, c.id))
+                .run();
+              return { ...c, ...updates };
+            }
+          }
+          return c;
+        });
+
         return NextResponse.json({
-          contacts: cached,
+          contacts: enrichedCached,
           cached: true,
           searchId: oldest.happenstanceSearchId,
         });
@@ -67,6 +150,16 @@ export async function POST(request: NextRequest) {
     }
 
     for (const person of results) {
+      // Cross-reference with LinkedIn data to fill missing URLs
+      let linkedinUrl = person.linkedin_url || null;
+      let email = person.email || null;
+
+      if ((!linkedinUrl || !email) && person.name) {
+        const enriched = enrichFromLinkedin(person.name, companyName, linkedinConnections);
+        if (!linkedinUrl && enriched.linkedinUrl) linkedinUrl = enriched.linkedinUrl;
+        if (!email && enriched.email) email = enriched.email;
+      }
+
       const contact = db
         .insert(schema.networkContacts)
         .values({
@@ -74,8 +167,8 @@ export async function POST(request: NextRequest) {
           normalizedCompany: normalized,
           personName: person.name || "Unknown",
           personTitle: person.title || null,
-          personLinkedin: person.linkedin_url || null,
-          personEmail: person.email || null,
+          personLinkedin: linkedinUrl,
+          personEmail: email,
           personLocation: person.location || null,
           personBio: person.bio || null,
           personImageUrl: person.image_url || null,

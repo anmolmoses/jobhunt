@@ -10,7 +10,7 @@ export interface JobSearchParams {
   resultsPerPage?: number;
 }
 
-export type JobProviderName = "jsearch" | "adzuna" | "remotive" | "linkedin" | "indeed" | "remoteok" | "jobicy" | "hackernews";
+export type JobProviderName = "jsearch" | "adzuna" | "remotive" | "linkedin" | "indeed" | "remoteok" | "jobicy" | "hackernews" | "firecrawl";
 
 export interface NormalizedJob {
   externalId: string;

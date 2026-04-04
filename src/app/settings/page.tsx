@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
-import { Save, TestTube, Loader2, Trash2, AlertTriangle, Clock, Play, CheckCircle, XCircle, Timer } from "lucide-react";
+import { Save, TestTube, Loader2, Trash2, AlertTriangle, Clock, Play, CheckCircle, XCircle, Timer, MapPin, RefreshCw } from "lucide-react";
 import { GamificationSettings } from "@/components/settings/gamification-settings";
 import { SearchConfigSettings } from "@/components/settings/search-config";
 
@@ -38,6 +38,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
   const [envSources, setEnvSources] = useState<Set<string>>(new Set());
+  const [geocodeProgress, setGeocodeProgress] = useState<string | null>(null);
+  const [geocoding, setGeocoding] = useState(false);
 
   const [settings, setSettings] = useState({
     ai_provider: "claude",
@@ -152,6 +154,46 @@ export default function SettingsPage() {
       toast(`Failed to test ${provider} connection`, "error");
     } finally {
       setTesting(null);
+    }
+  };
+
+  const handleUpdateMapCoordinates = async (force: boolean) => {
+    setGeocoding(true);
+    setGeocodeProgress("Starting...");
+    try {
+      const res = await fetch(`/api/jobs/geocode${force ? "?force=true" : ""}`, { method: "POST" });
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No stream");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.step) setGeocodeProgress(`${data.step}${data.detail ? ` (${data.detail})` : ""}`);
+              if (data.total !== undefined && data.success !== undefined) {
+                toast(`Map updated: ${data.success}/${data.total} locations geocoded`, "success");
+              }
+              if (data.error) toast(data.error, "error");
+            } catch { /* skip malformed events */ }
+          }
+        }
+      }
+    } catch {
+      toast("Failed to update map coordinates", "error");
+    } finally {
+      setGeocoding(false);
+      setGeocodeProgress(null);
     }
   };
 
@@ -491,6 +533,47 @@ export default function SettingsPage() {
               <li>Resume Tailoring — full job descriptions scraped from apply URLs</li>
               <li>Job Search — enriches truncated descriptions from providers</li>
             </ul>
+          </div>
+
+          <div className="rounded-lg border p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4" />
+                  Update Map Coordinates
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Re-geocode all jobs using Firecrawl search to find actual office addresses.
+                  Fixes city-center pins with real office locations.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={geocoding || !settings.firecrawl_api_url}
+                onClick={() => handleUpdateMapCoordinates(false)}
+              >
+                {geocoding ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                Update New Only
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={geocoding || !settings.firecrawl_api_url}
+                onClick={() => handleUpdateMapCoordinates(true)}
+              >
+                {geocoding ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Force Re-geocode All
+              </Button>
+            </div>
+            {geocodeProgress && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {geocodeProgress}
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>

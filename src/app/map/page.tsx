@@ -56,16 +56,34 @@ export default function MapPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCompany, setSelectedCompany] = useState<CompanyGroup | null>(null);
   const [highlightedJob, setHighlightedJob] = useState<MapJob | null>(null);
+  const [loadingStep, setLoadingStep] = useState("Connecting...");
+  const [loadingDetail, setLoadingDetail] = useState("");
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   useEffect(() => {
-    fetch("/api/jobs/map")
-      .then((res) => res.json())
-      .then((data) => {
-        setJobs(data.jobs || []);
-        setTotalJobs(data.totalJobs || 0);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    const eventSource = new EventSource("/api/jobs/map");
+
+    eventSource.addEventListener("step", (e) => {
+      const data = JSON.parse(e.data);
+      setLoadingStep(data.step);
+      setLoadingDetail(data.detail || "");
+      if (data.progress != null) setLoadingProgress(data.progress);
+    });
+
+    eventSource.addEventListener("done", (e) => {
+      const data = JSON.parse(e.data);
+      setJobs(data.jobs || []);
+      setTotalJobs(data.totalJobs || 0);
+      setLoading(false);
+      eventSource.close();
+    });
+
+    eventSource.addEventListener("error", () => {
+      setLoading(false);
+      eventSource.close();
+    });
+
+    return () => eventSource.close();
   }, []);
 
   // Group jobs by company
@@ -160,7 +178,20 @@ export default function MapPage() {
   if (loading) {
     return (
       <div className="fixed inset-0 ml-64 flex items-center justify-center bg-[#0d1117]">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+        <div className="flex flex-col items-center gap-4 max-w-md px-6">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+          <p className="text-sm text-white font-medium text-center">{loadingStep}</p>
+          {loadingDetail && (
+            <p className="text-xs text-gray-500">{loadingDetail}</p>
+          )}
+          <div className="w-64 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+              style={{ width: `${loadingProgress}%` }}
+            />
+          </div>
+          <p className="text-xs text-gray-600">{loadingProgress}%</p>
+        </div>
       </div>
     );
   }

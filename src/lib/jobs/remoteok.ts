@@ -26,18 +26,22 @@ export class RemoteOKProvider implements JobSearchProvider {
       const maxAgeDays = DATE_MAP[params.datePosted || "30d"] || 30;
       const dateCutoff = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000);
 
-      // Client-side filtering
+      // Client-side filtering — require title-level match, not just description
       let filtered = jobs.filter((job: Record<string, unknown>) => {
         // Filter by date first
         const jobDate = job.date ? new Date(job.date as string) : null;
         if (jobDate && jobDate < dateCutoff) return false;
         const title = ((job.position as string) || "").toLowerCase();
-        const company = ((job.company as string) || "").toLowerCase();
         const tags = ((job.tags as string[]) || []).map((t) => t.toLowerCase());
-        const desc = ((job.description as string) || "").toLowerCase();
-        const allText = `${title} ${company} ${tags.join(" ")} ${desc}`;
+        const titleAndTags = `${title} ${tags.join(" ")}`;
 
-        return queryTerms.some((t) => allText.includes(t));
+        // Require at least one meaningful query term (>3 chars) in the title or tags
+        const meaningfulTerms = queryTerms.filter((t) => t.length > 3);
+        if (meaningfulTerms.length > 0) {
+          return meaningfulTerms.some((t) => titleAndTags.includes(t));
+        }
+        // Fallback for short terms: require match in title
+        return queryTerms.some((t) => title.includes(t));
       });
 
       // Location filter

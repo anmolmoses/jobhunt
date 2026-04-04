@@ -30,6 +30,15 @@ interface CompanyData {
     description: string | null;
     headquarters: string | null;
     aiInsights: string | null;
+    founded: string | null;
+    funding: string | null;
+    fundingStage: string | null;
+    valuation: string | null;
+    investors: string | null;
+    revenue: string | null;
+    growthSignals: string | null;
+    glassdoorRating: string | null;
+    dataSources: string[];
   };
   cached: boolean;
 }
@@ -70,6 +79,32 @@ interface JobDetailModalProps {
   onUnsave?: () => void;
 }
 
+/** Lightweight markdown→HTML for scraped job descriptions (headings, lists, bold, italic, paragraphs). */
+function simpleMarkdownToHtml(md: string): string {
+  return md
+    // Headings (### → <h3>, etc.)
+    .replace(/^######\s+(.+)$/gm, "<h6>$1</h6>")
+    .replace(/^#####\s+(.+)$/gm, "<h5>$1</h5>")
+    .replace(/^####\s+(.+)$/gm, "<h4>$1</h4>")
+    .replace(/^###\s+(.+)$/gm, "<h3>$1</h3>")
+    .replace(/^##\s+(.+)$/gm, "<h2>$1</h2>")
+    .replace(/^#\s+(.+)$/gm, "<h1>$1</h1>")
+    // Bold / italic
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    // Unordered list items (consecutive * or - lines)
+    .replace(/(?:^[*-]\s+.+$\n?)+/gm, (block) => {
+      const items = block.trim().split("\n").map((l) => `<li>${l.replace(/^[*-]\s+/, "")}</li>`).join("");
+      return `<ul>${items}</ul>`;
+    })
+    // Paragraphs: double newlines
+    .replace(/\n{2,}/g, "</p><p>")
+    // Wrap in <p> and handle single line breaks
+    .replace(/^/, "<p>")
+    .replace(/$/, "</p>")
+    .replace(/\n/g, "<br>");
+}
+
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$", INR: "₹", GBP: "£", EUR: "€", JPY: "¥",
   CAD: "CA$", AUD: "A$", SGD: "S$",
@@ -90,6 +125,8 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
   const [linkedinMatches, setLinkedinMatches] = useState<LinkedInMatch[]>([]);
   const [linkedinLoading, setLinkedinLoading] = useState(false);
   const [happenstanceEnabled, setHappenstanceEnabled] = useState(false);
+  const [scrapedDescription, setScrapedDescription] = useState<string | null>(null);
+  const [scrapeLoading, setScrapeLoading] = useState(false);
 
   // Fetch company enrichment + LinkedIn matches when modal opens
   useEffect(() => {
@@ -99,7 +136,27 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
       setContactsSearched(false);
       setContactsError(null);
       setLinkedinMatches([]);
+      setScrapedDescription(null);
       return;
+    }
+
+    // Auto-scrape full description via Firecrawl when description is short/missing
+    const descLen = job.description?.replace(/<[^>]*>/g, "").trim().length || 0;
+    if (descLen < 500 && job.applyUrl) {
+      setScrapeLoading(true);
+      fetch("/api/jobs/scrape-description", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applyUrl: job.applyUrl }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.description && data.description.length > descLen) {
+            setScrapedDescription(data.description);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setScrapeLoading(false));
     }
 
     // Fetch LinkedIn connections at this company
@@ -347,7 +404,64 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
                   )}
                 </div>
 
-                {/* AI Insights */}
+                {/* Funding & Growth — from real web data */}
+                {(companyData?.company?.funding || companyData?.company?.valuation || companyData?.company?.growthSignals || companyData?.company?.glassdoorRating) && (
+                  <div className="rounded-lg border border-primary/10 bg-primary/5 p-3 mt-1 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <TrendingUp className="h-3.5 w-3.5" />
+                      Funding & Growth
+                    </div>
+                    <div className="grid gap-x-6 gap-y-1 grid-cols-2 text-sm">
+                      {companyData.company.funding && (
+                        <div>
+                          <span className="text-xs text-muted-foreground">Funding: </span>
+                          <span className="font-medium">{companyData.company.funding}</span>
+                          {companyData.company.fundingStage && (
+                            <Badge variant="secondary" className="ml-1.5 text-xs">{companyData.company.fundingStage}</Badge>
+                          )}
+                        </div>
+                      )}
+                      {companyData.company.valuation && (
+                        <div>
+                          <span className="text-xs text-muted-foreground">Valuation: </span>
+                          <span className="font-medium">{companyData.company.valuation}</span>
+                        </div>
+                      )}
+                      {companyData.company.revenue && (
+                        <div>
+                          <span className="text-xs text-muted-foreground">Revenue: </span>
+                          <span className="font-medium">{companyData.company.revenue}</span>
+                        </div>
+                      )}
+                      {companyData.company.founded && (
+                        <div>
+                          <span className="text-xs text-muted-foreground">Founded: </span>
+                          <span className="font-medium">{companyData.company.founded}</span>
+                        </div>
+                      )}
+                      {companyData.company.glassdoorRating && (
+                        <div>
+                          <span className="text-xs text-muted-foreground">Glassdoor: </span>
+                          <span className="font-medium">{companyData.company.glassdoorRating}</span>
+                        </div>
+                      )}
+                    </div>
+                    {companyData.company.investors && (
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">Investors:</span> {companyData.company.investors}
+                      </p>
+                    )}
+                    {companyData.company.growthSignals && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {companyData.company.growthSignals.split(", ").map((signal) => (
+                          <Badge key={signal} variant="outline" className="text-xs">{signal}</Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Insights */}
                 {companyData?.company?.aiInsights && (
                   <div className="rounded-lg bg-background/60 p-3 mt-1">
                     <p className="text-xs text-muted-foreground italic">
@@ -356,9 +470,17 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
                   </div>
                 )}
 
-                {companyData?.cached && (
-                  <p className="text-xs text-muted-foreground opacity-50">Cached result</p>
-                )}
+                {/* Data sources */}
+                <div className="flex items-center gap-2 mt-1">
+                  {companyData?.company?.dataSources?.length > 0 && (
+                    <p className="text-xs text-muted-foreground opacity-60">
+                      Sources: {companyData.company.dataSources.join(", ")}
+                    </p>
+                  )}
+                  {companyData?.cached && (
+                    <p className="text-xs text-muted-foreground opacity-50">· Cached</p>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="text-sm text-muted-foreground">
@@ -563,19 +685,46 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
           </CardContent>
         </Card>
 
-        {job.description && (
+        {/* Job Description — prefer Firecrawl-scraped full version */}
+        {(job.description || scrapedDescription || scrapeLoading) && (
           <div className="max-h-64 overflow-y-auto rounded-lg bg-muted/50 p-4">
-            <div
-              className="prose prose-sm dark:prose-invert max-w-none"
-              dangerouslySetInnerHTML={{
-                __html: typeof window !== "undefined"
-                  ? DOMPurify.sanitize(job.description, {
-                      ALLOWED_TAGS: ["b", "i", "em", "strong", "p", "br", "ul", "ol", "li", "a", "h1", "h2", "h3", "h4", "h5", "h6", "span", "div", "table", "tr", "td", "th", "thead", "tbody"],
-                      ALLOWED_ATTR: ["href", "target", "rel", "class", "style"],
-                    })
-                  : job.description.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ""),
-              }}
-            />
+            {scrapeLoading && !job.description && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Fetching full job description...
+              </div>
+            )}
+            {scrapedDescription ? (
+              <>
+                <div className="flex items-center gap-1.5 mb-2 text-xs text-muted-foreground">
+                  <Globe className="h-3 w-3" />
+                  Full description scraped from job page
+                </div>
+                <div
+                  className="prose prose-sm dark:prose-invert max-w-none"
+                  dangerouslySetInnerHTML={{
+                    __html: typeof window !== "undefined"
+                      ? DOMPurify.sanitize(simpleMarkdownToHtml(scrapedDescription), {
+                          ALLOWED_TAGS: ["b", "i", "em", "strong", "p", "br", "ul", "ol", "li", "h1", "h2", "h3", "h4", "h5", "h6", "span", "div"],
+                          ALLOWED_ATTR: [],
+                        })
+                      : scrapedDescription,
+                  }}
+                />
+              </>
+            ) : job.description ? (
+              <div
+                className="prose prose-sm dark:prose-invert max-w-none"
+                dangerouslySetInnerHTML={{
+                  __html: typeof window !== "undefined"
+                    ? DOMPurify.sanitize(job.description, {
+                        ALLOWED_TAGS: ["b", "i", "em", "strong", "p", "br", "ul", "ol", "li", "a", "h1", "h2", "h3", "h4", "h5", "h6", "span", "div", "table", "tr", "td", "th", "thead", "tbody"],
+                        ALLOWED_ATTR: ["href", "target", "rel", "class", "style"],
+                      })
+                    : job.description.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ""),
+                }}
+              />
+            ) : null}
           </div>
         )}
 

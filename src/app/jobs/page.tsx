@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -50,11 +50,22 @@ export default function JobsPage() {
 
   const [selectedJob, setSelectedJob] = useState<ExtendedJob | null>(null);
 
-  // Load all jobs from DB
-  const loadJobs = async (p: number = 1) => {
+  // Load all jobs from DB with server-side filters
+  const loadJobs = async (p: number = 1, filters?: {
+    company?: string; provider?: string; text?: string; remote?: string; sort?: string;
+  }) => {
     setLoadingAll(true);
     try {
-      const res = await fetch(`/api/jobs/all?page=${p}&limit=100`);
+      const params = new URLSearchParams({ page: String(p), limit: "100" });
+      const f = filters || {};
+      if (f.company || filterCompany) params.set("company", f.company ?? filterCompany);
+      if (f.provider || filterProvider) params.set("provider", f.provider ?? filterProvider);
+      if (f.text || filterText) params.set("q", f.text ?? filterText);
+      const remote = f.remote ?? filterRemote;
+      if (remote && remote !== "all") params.set("remote", remote);
+      params.set("sort", f.sort ?? sortBy);
+
+      const res = await fetch(`/api/jobs/all?${params}`);
       const data = await res.json();
       setAllJobs(data.jobs || []);
       setTotalInDb(data.total || 0);
@@ -73,9 +84,38 @@ export default function JobsPage() {
     loadJobs();
   }, []);
 
-  // Client-side filtering
+  // Reload from server when dropdown filters change (reset to page 1)
+  useEffect(() => {
+    if (!showNewSearch) {
+      loadJobs(1);
+    }
+  }, [filterCompany, filterProvider, filterRemote, sortBy]);
+
+  // Debounce text filter to avoid API call on every keystroke
+  const textDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => {
+    if (showNewSearch) return;
+    clearTimeout(textDebounceRef.current);
+    textDebounceRef.current = setTimeout(() => loadJobs(1), 300);
+    return () => clearTimeout(textDebounceRef.current);
+  }, [filterText]);
+
+  // Client-side filtering — only needed for new search results view
+  // For "all jobs" view, filtering is done server-side
   const filteredJobs = useMemo(() => {
-    let jobs = showNewSearch ? newSearchResults : allJobs;
+    if (!showNewSearch) {
+      // Server already filtered — only apply saved filter client-side
+      let jobs = allJobs;
+      if (filterSaved === "saved") {
+        jobs = jobs.filter((j) => (j as { savedJobId?: number | null }).savedJobId);
+      } else if (filterSaved === "unsaved") {
+        jobs = jobs.filter((j) => !(j as { savedJobId?: number | null }).savedJobId);
+      }
+      return jobs;
+    }
+
+    // New search results: filter client-side
+    let jobs = newSearchResults;
 
     if (filterText) {
       const q = filterText.toLowerCase();
@@ -431,15 +471,15 @@ export default function JobsPage() {
       {/* Results count */}
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>
-          Showing {filteredJobs.length} {hasActiveFilters ? "filtered" : ""} job{filteredJobs.length !== 1 ? "s" : ""}
+          Showing {filteredJobs.length} of {totalInDb} {hasActiveFilters ? "filtered" : ""} job{totalInDb !== 1 ? "s" : ""}
         </span>
         {!showNewSearch && totalPages > 1 && (
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              disabled={page <= 1}
-              onClick={() => { setPage(page - 1); loadJobs(page - 1); }}
+              disabled={page <= 1 || loadingAll}
+              onClick={() => loadJobs(page - 1)}
             >
               <ChevronLeft className="h-3 w-3" />
             </Button>
@@ -447,8 +487,8 @@ export default function JobsPage() {
             <Button
               variant="outline"
               size="sm"
-              disabled={page >= totalPages}
-              onClick={() => { setPage(page + 1); loadJobs(page + 1); }}
+              disabled={page >= totalPages || loadingAll}
+              onClick={() => loadJobs(page + 1)}
             >
               <ChevronRight className="h-3 w-3" />
             </Button>

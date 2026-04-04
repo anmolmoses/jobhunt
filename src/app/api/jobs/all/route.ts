@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, sql, and } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,18 +9,56 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 200);
     const offset = (page - 1) * limit;
 
-    // Get total count
-    const countResult = db
+    // Server-side filter params
+    const filterCompany = url.searchParams.get("company") || "";
+    const filterProvider = url.searchParams.get("provider") || "";
+    const filterText = url.searchParams.get("q") || "";
+    const filterRemote = url.searchParams.get("remote") || ""; // "remote" | "onsite" | ""
+    const sortBy = url.searchParams.get("sort") || "recent"; // "recent" | "relevance" | "salary"
+
+    // Build WHERE conditions
+    const conditions = [];
+    if (filterCompany) {
+      conditions.push(eq(schema.jobResults.company, filterCompany));
+    }
+    if (filterProvider) {
+      conditions.push(eq(schema.jobResults.provider, filterProvider));
+    }
+    if (filterText) {
+      conditions.push(sql`(
+        LOWER(${schema.jobResults.title}) LIKE ${'%' + filterText.toLowerCase() + '%'}
+        OR LOWER(${schema.jobResults.company}) LIKE ${'%' + filterText.toLowerCase() + '%'}
+        OR LOWER(${schema.jobResults.location}) LIKE ${'%' + filterText.toLowerCase() + '%'}
+      )`);
+    }
+    if (filterRemote === "remote") {
+      conditions.push(eq(schema.jobResults.isRemote, true));
+    } else if (filterRemote === "onsite") {
+      conditions.push(eq(schema.jobResults.isRemote, false));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // Sort order
+    const orderBy = sortBy === "relevance"
+      ? desc(schema.jobResults.relevanceScore)
+      : sortBy === "salary"
+      ? desc(schema.jobResults.salaryMin)
+      : desc(schema.jobResults.createdAt);
+
+    // Get total count with filters
+    const countQuery = db
       .select({ count: sql<number>`count(*)` })
-      .from(schema.jobResults)
-      .get();
+      .from(schema.jobResults);
+    const countResult = (whereClause ? countQuery.where(whereClause) : countQuery).get();
     const total = countResult?.count || 0;
 
-    // Get jobs with pagination
-    const jobs = db
+    // Get jobs with filters + pagination
+    const baseQuery = db
       .select()
-      .from(schema.jobResults)
-      .orderBy(desc(schema.jobResults.createdAt))
+      .from(schema.jobResults);
+    const jobs = (whereClause ? baseQuery.where(whereClause) : baseQuery)
+      .orderBy(orderBy)
       .limit(limit)
       .offset(offset)
       .all();

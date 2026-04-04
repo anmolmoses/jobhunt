@@ -3,8 +3,11 @@ import { eq } from "drizzle-orm";
 import { getSetting } from "@/lib/settings";
 import { createAIProvider } from "@/lib/ai/provider";
 import { COMPANY_ENRICHMENT_SYSTEM_PROMPT, COMPANY_ENRICHMENT_USER_PROMPT } from "@/lib/ai/prompts";
-import { isFirecrawlConfigured, scrapeCompanyInfo } from "@/lib/firecrawl/client";
-import { guessDomain } from "@/lib/company/logo";
+import {
+  isFirecrawlConfigured,
+  searchCompanyIntelligence,
+  type CompanyIntelligence,
+} from "@/lib/firecrawl/client";
 
 function normalizeCompanyName(name: string): string {
   return name
@@ -49,6 +52,16 @@ interface CompanyInfo {
   description: string | null;
   headquarters: string | null;
   aiInsights: string | null;
+  // New fields from Firecrawl web search
+  founded: string | null;
+  funding: string | null;
+  fundingStage: string | null;
+  valuation: string | null;
+  investors: string | null;
+  revenue: string | null;
+  growthSignals: string | null;
+  glassdoorRating: string | null;
+  dataSources: string[];
 }
 
 export interface CompanyEnrichmentData {
@@ -74,7 +87,6 @@ export async function enrichCompany(
     .get();
 
   if (cached) {
-    const { symbol } = detectCurrency(cached.salaryLocation);
     return {
       companyName: cached.companyName,
       salary: {
@@ -94,34 +106,85 @@ export async function enrichCompany(
         description: cached.description,
         headquarters: cached.headquarters,
         aiInsights: cached.aiInsights,
+        founded: cached.founded ?? null,
+        funding: cached.funding ?? null,
+        fundingStage: cached.fundingStage ?? null,
+        valuation: cached.valuation ?? null,
+        investors: cached.investors ?? null,
+        revenue: cached.revenue ?? null,
+        growthSignals: cached.growthSignals ?? null,
+        glassdoorRating: cached.glassdoorRating ?? null,
+        dataSources: safeParse(cached.dataSources, []),
       },
       cached: true,
     };
   }
 
-  // Scrape company website if Firecrawl is available (for better AI analysis)
-  let scrapedContext = "";
-  if (await isFirecrawlConfigured()) {
-    try {
-      const domain = guessDomain(companyName);
-      if (domain) {
-        const scraped = await scrapeCompanyInfo(domain);
-        const parts: string[] = [];
-        if (scraped.aboutContent) parts.push(`ABOUT PAGE:\n${scraped.aboutContent.slice(0, 2000)}`);
-        if (scraped.contactContent) parts.push(`CONTACT/OFFICES PAGE:\n${scraped.contactContent.slice(0, 2000)}`);
-        if (scraped.careersContent) parts.push(`CAREERS PAGE:\n${scraped.careersContent.slice(0, 1000)}`);
-        scrapedContext = parts.join("\n\n");
-      }
-    } catch (e) {
-      console.error("Firecrawl scrape for enrichment failed:", e);
-    }
-  }
+  // --- Firecrawl-first: search the web for real company data ---
+  let companyInfo: CompanyInfo;
+  let salaryData: SalaryData;
 
-  // Fetch salary data from JSearch + AI company analysis in parallel
-  const [salaryData, companyInfo] = await Promise.all([
-    fetchSalaryData(jobTitle, location),
-    analyzeCompany(companyName, jobTitle, location, jobDescription, scrapedContext),
-  ]);
+  if (await isFirecrawlConfigured()) {
+    // STEP 1: Search the web for real company data (no AI)
+    let intel: CompanyIntelligence | null = null;
+    try {
+      intel = await searchCompanyIntelligence(companyName, jobTitle, location);
+    } catch (e) {
+      console.error("Firecrawl company intelligence failed:", e);
+    }
+
+    // STEP 2: Fetch salary from JSearch API in parallel
+    salaryData = await fetchSalaryData(jobTitle, location);
+
+    if (intel && (intel.description || intel.funding || intel.companySize)) {
+      // Got real web data — use it directly
+      companyInfo = {
+        companySize: intel.companySize,
+        companySizeCategory: intel.companySizeCategory,
+        companyType: intel.companyType,
+        industry: intel.industry,
+        description: intel.description,
+        headquarters: intel.headquarters,
+        aiInsights: intel.insights,
+        founded: intel.founded,
+        funding: intel.funding,
+        fundingStage: intel.fundingStage,
+        valuation: intel.valuation,
+        investors: intel.investors,
+        revenue: intel.revenue,
+        growthSignals: intel.growthSignals,
+        glassdoorRating: intel.glassdoorRating,
+        dataSources: intel.dataSources,
+      };
+
+      // If Firecrawl also found salary data and JSearch didn't, use it
+      if (!salaryData.median && intel.salaryRange) {
+        companyInfo.aiInsights = (companyInfo.aiInsights || "") +
+          (companyInfo.aiInsights ? " " : "") +
+          `Salary range from web: ${intel.salaryRange}.`;
+      }
+    } else {
+      // Firecrawl search returned nothing — fall back to AI
+      const aiResult = await analyzeCompany(companyName, jobTitle, location, jobDescription);
+      companyInfo = {
+        ...aiResult,
+        founded: null, funding: null, fundingStage: null, valuation: null,
+        investors: null, revenue: null, growthSignals: null,
+        glassdoorRating: null, dataSources: ["AI"],
+      };
+    }
+  } else {
+    // No Firecrawl: pure AI path
+    [salaryData, companyInfo] = await Promise.all([
+      fetchSalaryData(jobTitle, location),
+      analyzeCompany(companyName, jobTitle, location, jobDescription).then((ai) => ({
+        ...ai,
+        founded: null, funding: null, fundingStage: null, valuation: null,
+        investors: null, revenue: null, growthSignals: null,
+        glassdoorRating: null, dataSources: ["AI"] as string[],
+      })),
+    ]);
+  }
 
   // Cache the results
   db.insert(schema.companyEnrichment)
@@ -141,6 +204,15 @@ export async function enrichCompany(
       description: companyInfo.description,
       headquarters: companyInfo.headquarters,
       aiInsights: companyInfo.aiInsights,
+      founded: companyInfo.founded,
+      funding: companyInfo.funding,
+      fundingStage: companyInfo.fundingStage,
+      valuation: companyInfo.valuation,
+      investors: companyInfo.investors,
+      revenue: companyInfo.revenue,
+      growthSignals: companyInfo.growthSignals,
+      glassdoorRating: companyInfo.glassdoorRating,
+      dataSources: JSON.stringify(companyInfo.dataSources),
       rawSalaryData: JSON.stringify(salaryData),
       rawAiResponse: JSON.stringify(companyInfo),
     })
@@ -152,6 +224,11 @@ export async function enrichCompany(
     company: companyInfo,
     cached: false,
   };
+}
+
+function safeParse(s: string | null | undefined, fallback: unknown = []): string[] {
+  if (!s) return fallback as string[];
+  try { return JSON.parse(s); } catch { return fallback as string[]; }
 }
 
 async function fetchSalaryData(jobTitle: string, location: string | null): Promise<SalaryData> {
@@ -186,7 +263,6 @@ async function fetchSalaryData(jobTitle: string, location: string | null): Promi
 
     if (salaries.length === 0) return nullResult;
 
-    // Aggregate across all salary publishers
     let totalMin = 0;
     let totalMax = 0;
     let totalMedian = 0;
@@ -222,21 +298,18 @@ async function fetchSalaryData(jobTitle: string, location: string | null): Promi
   }
 }
 
+/** AI fallback — only used when Firecrawl is not configured or returns no data */
 async function analyzeCompany(
   companyName: string,
   jobTitle: string,
   location: string | null,
   jobDescription: string | null,
-  scrapedContext?: string
-): Promise<CompanyInfo> {
+): Promise<Omit<CompanyInfo, "founded" | "funding" | "fundingStage" | "valuation" | "investors" | "revenue" | "growthSignals" | "glassdoorRating" | "dataSources">> {
   try {
     const aiProvider = await createAIProvider();
 
     const descriptionContent = jobDescription ? jobDescription.slice(0, 3000) : "No description available";
-    const userContent = scrapedContext
-      ? COMPANY_ENRICHMENT_USER_PROMPT(companyName, jobTitle, location || "Unknown", descriptionContent)
-        + "\n\n--- SCRAPED FROM COMPANY WEBSITE ---\n" + scrapedContext
-      : COMPANY_ENRICHMENT_USER_PROMPT(companyName, jobTitle, location || "Unknown", descriptionContent);
+    const userContent = COMPANY_ENRICHMENT_USER_PROMPT(companyName, jobTitle, location || "Unknown", descriptionContent);
 
     const rawResponse = await aiProvider.complete({
       messages: [

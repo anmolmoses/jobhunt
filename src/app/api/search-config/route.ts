@@ -82,6 +82,7 @@ export async function GET() {
       { id: "remoteok", name: "RemoteOK", requiresKey: false },
       { id: "jobicy", name: "Jobicy", requiresKey: false },
       { id: "hackernews", name: "Hacker News", requiresKey: false },
+      { id: "firecrawl", name: "Firecrawl Web Search", requiresKey: true, keyName: "firecrawl_api_url" },
     ];
 
     const configuredProviders = [];
@@ -92,6 +93,7 @@ export async function GET() {
         const envMap: Record<string, string> = {
           jsearch_api_key: "JSEARCH_API_KEY",
           adzuna_app_id: "ADZUNA_APP_ID",
+          firecrawl_api_url: "FIRECRAWL_API_URL",
         };
         if (!key && !process.env[envMap[p.keyName] || ""]) {
           configured = false;

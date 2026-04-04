@@ -6,9 +6,10 @@ import { IndeedProvider } from "./indeed";
 import { RemoteOKProvider } from "./remoteok";
 import { JobicyProvider } from "./jobicy";
 import { HackerNewsProvider } from "./hackernews";
+import { FirecrawlSearchProvider } from "./firecrawl-search";
 import { scoreATSMatch } from "./ats-score";
 import { db, schema } from "@/db";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { getCompanyLogoUrl } from "@/lib/company/logo";
 import type { JobSearchParams, NormalizedJob } from "@/types/jobs";
 
@@ -57,6 +58,7 @@ const providers = [
   new RemoteOKProvider(),
   new JobicyProvider(),
   new HackerNewsProvider(),
+  new FirecrawlSearchProvider(),
 ];
 
 interface SearchResult {
@@ -189,8 +191,21 @@ export async function searchJobs(
     .returning()
     .get();
 
-  // Persist job results and collect DB IDs
+  // Persist job results with cross-search deduplication
+  // Skip jobs that already exist in the DB from previous searches
   const jobsWithIds = scored.map((job) => {
+    const existing = db
+      .select({ id: schema.jobResults.id })
+      .from(schema.jobResults)
+      .where(eq(schema.jobResults.dedupeKey, job.dedupeKey))
+      .limit(1)
+      .get();
+
+    if (existing) {
+      // Already in DB from a previous search — reuse existing ID
+      return { ...job, dbId: existing.id };
+    }
+
     const inserted = db.insert(schema.jobResults)
       .values({
         searchId: search.id,
@@ -256,13 +271,31 @@ function dataRichness(job: NormalizedJob): number {
   return score;
 }
 
+// Engineering role keywords — job titles must contain at least one to be relevant
+const ENGINEERING_ROLE_KEYWORDS = [
+  "engineer", "developer", "architect", "sde", "swe",
+  "backend", "back end", "back-end", "frontend", "front end", "front-end",
+  "software", "platform", "devops", "sre", "infrastructure",
+  "full stack", "fullstack", "full-stack",
+  "programmer", "technical", "cto", "vp engineering",
+  "data scientist", "data engineer", "machine learning", "ml engineer",
+  "python", "java", "golang", "rust", "node",
+  "mts", "consultant",
+];
+
 /**
  * Filter out jobs that don't match the user's profile.
+ * - Remove jobs whose title has zero engineering role keywords
  * - Remove jobs with exclude keywords in title
  * - Remove jobs clearly below experience level (intern/fresher for senior, etc.)
+ * - Remove jobs outside preferred locations (unless remote)
  */
 function filterJobs(jobs: NormalizedJob[], prefs: UserPreferences): NormalizedJob[] {
   const excludeKeywords = prefs.excludeKeywords.map((k) => k.toLowerCase());
+  const locationTerms = (prefs.preferredLocations || []).flatMap((l) =>
+    l.toLowerCase().split(/[\s,]+/).filter((t: string) => t.length > 2)
+  );
+  const hasLocationPrefs = locationTerms.length > 0;
 
   // Experience level seniority for filtering
   const SENIORITY: Record<string, number> = {
@@ -278,7 +311,11 @@ function filterJobs(jobs: NormalizedJob[], prefs: UserPreferences): NormalizedJo
 
   return jobs.filter((job) => {
     const titleLower = job.title.toLowerCase();
-    const descLower = (job.description || "").toLowerCase().slice(0, 500); // Check start of description
+    const descLower = (job.description || "").toLowerCase().slice(0, 500);
+
+    // Hard filter: title must contain at least one engineering role keyword
+    const isEngineeringRole = ENGINEERING_ROLE_KEYWORDS.some((kw) => titleLower.includes(kw));
+    if (!isEngineeringRole) return false;
 
     // Filter by exclude keywords (check title + start of description)
     for (const kw of excludeKeywords) {
@@ -306,6 +343,15 @@ function filterJobs(jobs: NormalizedJob[], prefs: UserPreferences): NormalizedJo
     if (yoeMatch && userSeniority >= 4) {
       const maxYoe = parseInt(yoeMatch[2]);
       if (maxYoe <= 3) return false; // Filter "1-3 years" for senior engineers
+    }
+
+    // Hard filter: location must match preferred locations or be remote
+    if (hasLocationPrefs) {
+      const jobLocLower = (job.location || "").toLowerCase();
+      const isRemote = job.isRemote || jobLocLower.includes("remote") || jobLocLower.includes("worldwide") || jobLocLower.includes("anywhere");
+      const locationMatch = locationTerms.some((t) => jobLocLower.includes(t));
+      // Allow remote, location match, or empty location (unknown)
+      if (!isRemote && !locationMatch && jobLocLower.length > 0) return false;
     }
 
     return true;

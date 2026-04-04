@@ -1,5 +1,6 @@
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
+import { isFirecrawlConfigured, getFirecrawlClient } from "@/lib/firecrawl/client";
 
 interface GeoResult {
   latitude: number | null;
@@ -39,6 +40,92 @@ async function nominatimSearch(query: string): Promise<GeoResult> {
     longitude: parseFloat(data[0].lon),
     displayName: data[0].display_name,
   };
+}
+
+/**
+ * Extract a street address from Firecrawl search result descriptions.
+ * Search results often contain the full address in the description or title.
+ */
+function extractAddressFromSearchResults(
+  results: { title?: string; description?: string; url?: string }[],
+  city: string
+): string | null {
+  const cityTerms = city.toLowerCase().split(/[\s,]+/).filter((t) => t.length > 2);
+
+  for (const result of results) {
+    const text = `${result.title || ""} ${result.description || ""}`;
+    const textLower = text.toLowerCase();
+
+    // Must mention the city
+    if (!cityTerms.some((term) => textLower.includes(term))) continue;
+
+    // Look for address patterns: "123, Street Name, Area, City, State PIN"
+    const addressPatterns = [
+      // Full address with postal code
+      /(\d+[,\s]+[A-Za-z][A-Za-z\s,.-]+(?:\d{5,6}|\d{3}\s?\d{3})[,\s]*(?:India|USA|UK|Canada|Australia|[A-Z]{2})?)/g,
+      // "by the address ..." pattern
+      /(?:address|located at|office at)[:\s]+([^.]+)/gi,
+      // General address with street indicators
+      /(\d+[,\s]+(?:[A-Za-z]+\s+)*(?:Road|Rd|Street|St|Avenue|Ave|Blvd|Lane|Ring Rd|Highway|Hwy|Marg|Nagar)[^.]*)/gi,
+    ];
+
+    for (const pattern of addressPatterns) {
+      pattern.lastIndex = 0;
+      const match = pattern.exec(text);
+      if (match && match[1]) {
+        const addr = match[1].replace(/[*#\[\]()]/g, "").trim().replace(/[,\s]+$/, "");
+        if (addr.length > 15 && addr.length < 250) return addr;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Use Firecrawl search to find the actual office address for a company in a city,
+ * then geocode that specific address with Nominatim.
+ */
+async function firecrawlGeocode(
+  company: string,
+  location: string
+): Promise<GeoResult> {
+  if (!(await isFirecrawlConfigured())) {
+    return { latitude: null, longitude: null, displayName: null };
+  }
+
+  try {
+    const client = await getFirecrawlClient();
+    if (!client) return { latitude: null, longitude: null, displayName: null };
+
+    // Use Firecrawl search to find the office address
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const searchResult = await (client as any).search(`${company} office ${location} address`, { limit: 3 });
+
+    const results = (searchResult?.data || []) as { title?: string; description?: string; url?: string }[];
+    if (results.length === 0) return { latitude: null, longitude: null, displayName: null };
+
+    // Extract address from search result descriptions
+    const address = extractAddressFromSearchResults(results, location);
+    if (address) {
+      const geo = await nominatimSearch(address);
+      if (geo.latitude) return geo;
+    }
+
+    // If no structured address found, try using the first result's description as context
+    // and geocode "{company} {first_result_description_snippet}"
+    const firstDesc = results[0]?.description || "";
+    if (firstDesc.length > 20) {
+      // Extract just the location-relevant part
+      const snippet = firstDesc.slice(0, 100).replace(/[.!?].*$/, "").trim();
+      const geo = await nominatimSearch(`${company} ${snippet}`);
+      if (geo.latitude) return geo;
+    }
+  } catch (e) {
+    console.error("Firecrawl search geocode error:", e);
+  }
+
+  return { latitude: null, longitude: null, displayName: null };
 }
 
 function cacheResult(query: string, result: GeoResult) {
@@ -90,16 +177,20 @@ export async function geocode(location: string): Promise<GeoResult> {
 }
 
 /**
- * Geocode a company at a location. Tries increasingly specific queries:
- * 1. "{company} office, {location}" — finds the actual office POI
- * 2. "{company}, {location}" — finds company as a place
- * 3. "{location}" — falls back to city-level
- * Results are cached per company+location combo.
+ * Geocode a company at a location. Tries strategies in order:
+ * 1. "{company} {location}" — finds company POI in OpenStreetMap (no comma!)
+ * 2. Enrichment headquarters address — from company enrichment data
+ * 3. Firecrawl — scrapes company website for office address, geocodes that
+ * 4. "{location}" — falls back to city-level
+ *
+ * NOTE: Commas in Nominatim queries cause failures. "Cisco Bangalore" works,
+ * "Cisco, Bangalore" returns nothing. Always use space-separated queries.
  */
 export async function geocodeCompany(
   company: string,
   location: string,
-  headquarters?: string | null
+  headquarters?: string | null,
+  companyDomain?: string | null
 ): Promise<GeoResult> {
   if (!location || location.toLowerCase() === "remote") {
     return { latitude: null, longitude: null, displayName: null };
@@ -112,9 +203,19 @@ export async function geocodeCompany(
   const cached = checkCache(cacheKey);
   if (cached) return cached;
 
+  // Clean location — strip parenthetical notes like "(Remote)" or "(Hybrid)"
+  const locationClean = location.replace(/\s*\(.*?\)\s*/g, "").trim();
+
   try {
-    // Strategy 1: If we have a specific headquarters address from enrichment, try that
-    if (headquarters && headquarters.length > 10) {
+    // Strategy 1: "{company} {location}" — NO COMMA, finds company POI in OSM
+    const poiResult = await nominatimSearch(`${companyClean} ${locationClean}`);
+    if (poiResult.latitude) {
+      cacheResult(cacheKey, poiResult);
+      return poiResult;
+    }
+
+    // Strategy 2: Enrichment headquarters address
+    if (headquarters && headquarters.length > 10 && headquarters !== "Unknown") {
       const hqResult = await nominatimSearch(headquarters);
       if (hqResult.latitude) {
         cacheResult(cacheKey, hqResult);
@@ -122,31 +223,35 @@ export async function geocodeCompany(
       }
     }
 
-    // Strategy 2: Try "{company} office, {location}" — works for well-known companies in OSM
-    const officeResult = await nominatimSearch(`${companyClean} office, ${location}`);
-    if (officeResult.latitude) {
-      cacheResult(cacheKey, officeResult);
-      return officeResult;
+    // Strategy 3: Firecrawl search — search for company office address, then geocode
+    try {
+      const fcResult = await firecrawlGeocode(companyClean, locationClean);
+      if (fcResult.latitude) {
+        cacheResult(cacheKey, fcResult);
+        return fcResult;
+      }
+    } catch (e) {
+      console.error("Firecrawl geocode failed for", company, e);
     }
 
-    // Strategy 3: Try "{company}, {location}" — company as POI
-    const companyResult = await nominatimSearch(`${companyClean}, ${location}`);
-    if (companyResult.latitude) {
-      cacheResult(cacheKey, companyResult);
-      return companyResult;
-    }
-
-    // Strategy 4: Fall back to just the location
-    const locationResult = await nominatimSearch(location);
+    // Strategy 4: Fall back to just the location (city-level)
+    const locationResult = await nominatimSearch(locationClean);
     cacheResult(cacheKey, locationResult);
     return locationResult;
   } catch (error) {
     console.error("Geocode company error for", company, location, error);
-    // Fall back to basic location geocoding
     const fallback = await geocode(location);
     cacheResult(cacheKey, fallback);
     return fallback;
   }
+}
+
+/**
+ * Clear geocode cache entries so they can be re-geocoded.
+ * Used by the "Update Map Coordinates" button in settings.
+ */
+export function clearGeocodeCache() {
+  db.delete(schema.geocodeCache).run();
 }
 
 /**

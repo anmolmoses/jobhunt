@@ -3,7 +3,33 @@ import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { searchJobs } from "@/lib/jobs/orchestrator";
 import { recordAction } from "@/lib/gamification";
-import type { JobSearchParams } from "@/types/jobs";
+import { geocodeCompany } from "@/lib/geo/geocode";
+import { guessDomain } from "@/lib/company/logo";
+import type { JobSearchParams, NormalizedJob } from "@/types/jobs";
+
+/**
+ * Background geocode newly found jobs (fire-and-forget).
+ * Runs after search results are returned to the user.
+ */
+async function backgroundGeocode(jobs: NormalizedJob[]) {
+  const seen = new Set<string>();
+
+  for (const job of jobs) {
+    const loc = (job.location || "").toLowerCase();
+    if (!loc || loc === "remote" || loc === "worldwide" || loc === "anywhere") continue;
+
+    const key = `${job.company.toLowerCase()}:${loc}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    try {
+      const domain = guessDomain(job.company);
+      await geocodeCompany(job.company, job.location || "", null, domain);
+    } catch {
+      // Best-effort, don't block
+    }
+  }
+}
 
 function getSettingValue(key: string): string | null {
   const row = db.select().from(schema.settings).where(eq(schema.settings.key, key)).get();
@@ -42,6 +68,13 @@ export async function POST(request: NextRequest) {
     const providers = body.providers || enabledProviders;
     const result = await searchJobs(params, providers);
     try { recordAction("search"); } catch (e) { console.error("Gamification error:", e); }
+
+    // Fire-and-forget: pre-geocode job locations in the background
+    // This means the map will have coordinates ready when the user visits it
+    backgroundGeocode(result.jobs).catch((e) =>
+      console.error("Background geocode error:", e)
+    );
+
     return NextResponse.json(result);
   } catch (error) {
     console.error("Search error:", error);

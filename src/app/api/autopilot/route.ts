@@ -210,7 +210,9 @@ export async function POST() {
     const allJobs: Array<Record<string, unknown>> = [];
     const allProviderResults: Array<{ provider: string; count: number; error?: string }> = [];
 
-    for (const query of finalQueries.slice(0, maxQueries)) {
+    // When using custom queries only, run all of them (don't limit by maxQueries)
+    const queriesToRun = useCustomOnly ? finalQueries : finalQueries.slice(0, maxQueries);
+    for (const query of queriesToRun) {
       try {
         const result = await searchJobs({
           query,

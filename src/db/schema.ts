@@ -139,7 +139,7 @@ export const companyEnrichment = sqliteTable("company_enrichment", {
   salaryPublisherName: text("salary_publisher_name"),
   salaryJobTitle: text("salary_job_title"),
   salaryLocation: text("salary_location"),
-  // Company info (from AI analysis)
+  // Company info (from Firecrawl search / AI analysis)
   companySize: text("company_size"), // "1-10", "11-50", "51-200", "201-500", "501-1000", "1001-5000", "5000+"
   companySizeCategory: text("company_size_category"), // "startup", "mid", "enterprise"
   companyType: text("company_type"), // "public", "private", "startup", "nonprofit", "government"
@@ -147,6 +147,16 @@ export const companyEnrichment = sqliteTable("company_enrichment", {
   description: text("description"),
   headquarters: text("headquarters"),
   aiInsights: text("ai_insights"),
+  // Funding & growth data (from Firecrawl web search — real data)
+  founded: text("founded"),
+  funding: text("funding"), // e.g. "$742M"
+  fundingStage: text("funding_stage"), // e.g. "Series F"
+  valuation: text("valuation"), // e.g. "$7.5B"
+  investors: text("investors"),
+  revenue: text("revenue"),
+  growthSignals: text("growth_signals"),
+  glassdoorRating: text("glassdoor_rating"),
+  dataSources: text("data_sources"), // JSON array of source names
   rawSalaryData: text("raw_salary_data"), // JSON
   rawAiResponse: text("raw_ai_response"), // JSON
   createdAt: text("created_at")

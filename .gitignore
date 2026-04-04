@@ -38,6 +38,12 @@ next-env.d.ts
 /uploads/
 /drizzle/
 
+# Docker services (local infrastructure, not committed)
+/docker/
+
+# Internal docs (implementation plans, security audits, research — sensitive)
+/docs/internal/
+
 # IDE
 .idea/
 .vscode/

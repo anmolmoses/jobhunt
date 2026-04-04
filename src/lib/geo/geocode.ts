@@ -43,39 +43,93 @@ async function nominatimSearch(query: string): Promise<GeoResult> {
 }
 
 /**
- * Extract a street address from Firecrawl search result descriptions.
- * Search results often contain the full address in the description or title.
+ * Extract the first city name from a location string.
+ * "Bengaluru, Karnataka, India" → "Bengaluru"
+ */
+function extractCity(location: string): string {
+  return location.split(/[,/]/)[0].trim();
+}
+
+/** Common city name aliases for matching */
+const CITY_ALIASES: Record<string, string[]> = {
+  bengaluru: ["bangalore", "bengaluru", "blr"],
+  mumbai: ["bombay", "mumbai"],
+  chennai: ["madras", "chennai"],
+  kolkata: ["calcutta", "kolkata"],
+  gurgaon: ["gurugram", "gurgaon"],
+  pune: ["pune", "poona"],
+  hyderabad: ["hyderabad"],
+  delhi: ["delhi", "new delhi", "ncr", "noida", "ghaziabad"],
+};
+
+function getCityVariants(city: string): string[] {
+  const lower = city.toLowerCase();
+  for (const aliases of Object.values(CITY_ALIASES)) {
+    if (aliases.some((a) => lower.includes(a))) return aliases;
+  }
+  return [lower];
+}
+
+/**
+ * Extract address from Firecrawl search results for a city.
+ * Handles Indian addresses (park names, ring roads, PIN codes),
+ * US addresses (street numbers), and international formats.
  */
 function extractAddressFromSearchResults(
   results: { title?: string; description?: string; url?: string }[],
   city: string
 ): string | null {
-  const cityTerms = city.toLowerCase().split(/[\s,]+/).filter((t) => t.length > 2);
+  const cityLower = city.toLowerCase();
+
+  const cityVariants = getCityVariants(city);
 
   for (const result of results) {
     const text = `${result.title || ""} ${result.description || ""}`;
     const textLower = text.toLowerCase();
 
-    // Must mention the city
-    if (!cityTerms.some((term) => textLower.includes(term))) continue;
+    // Must mention the city or any of its aliases
+    if (!cityVariants.some((v) => textLower.includes(v))) continue;
 
-    // Look for address patterns: "123, Street Name, Area, City, State PIN"
-    const addressPatterns = [
-      // Full address with postal code
-      /(\d+[,\s]+[A-Za-z][A-Za-z\s,.-]+(?:\d{5,6}|\d{3}\s?\d{3})[,\s]*(?:India|USA|UK|Canada|Australia|[A-Z]{2})?)/g,
-      // "by the address ..." pattern
-      /(?:address|located at|office at)[:\s]+([^.]+)/gi,
-      // General address with street indicators
-      /(\d+[,\s]+(?:[A-Za-z]+\s+)*(?:Road|Rd|Street|St|Avenue|Ave|Blvd|Lane|Ring Rd|Highway|Hwy|Marg|Nagar)[^.]*)/gi,
+    // Strategy 1: Explicit address patterns — most reliable
+    // Only match "address" when followed by actual address content (numbers, building names, roads)
+    const explicitMatch = text.match(/(?:India-in|registered office address is|address is|located (?:at|in)|office at)\s*[:\s]+([^.]{15,200})/i)
+      || text.match(/\baddress[:\s]+(\d[^.]{15,200})/i)
+      || text.match(/\baddress[:\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+[^.]{10,150})/i);
+    if (explicitMatch) {
+      const addr = explicitMatch[1].replace(/[*#\[\]]/g, "").trim();
+      if (addr.length > 15) return addr;
+    }
+
+    // Strategy 2: Known Indian tech park / business park landmarks
+    const landmarkPatterns = [
+      // "Embassy Golf Links" / "RMZ Ecoworld" / "Tech Park" style
+      /([A-Z][A-Za-z\s]+(?:Business Park|Tech Park|Technopark|IT Park|Software Park|Ecoworld|Embassy|Campus|Tower|Center|Centre|Plaza)[A-Za-z0-9\s,.'/-]*)/i,
+      // Ring Road / well-known area references
+      /((?:[A-Za-z0-9']+[,\s]+){2,}(?:Ring Road|Ring Rd|Outer Ring|Inner Ring|Intermediate Ring|Hosur Road|Whitefield|Electronic City|Manyata|Hebbal|Marathahalli|Bellandur|Koramangala|Indiranagar|HSR|BTM|JP Nagar|Bannerghatta)[^.]*)/i,
     ];
 
-    for (const pattern of addressPatterns) {
-      pattern.lastIndex = 0;
-      const match = pattern.exec(text);
-      if (match && match[1]) {
-        const addr = match[1].replace(/[*#\[\]()]/g, "").trim().replace(/[,\s]+$/, "");
+    for (const pattern of landmarkPatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        let addr = match[1].replace(/[*#\[\]]/g, "").trim().replace(/[,\s]+$/, "");
+        // Append city if not already in the address
+        if (!addr.toLowerCase().includes(cityLower)) addr += " " + city;
         if (addr.length > 15 && addr.length < 250) return addr;
       }
+    }
+
+    // Strategy 3: Postal/PIN code based — grab everything before the PIN code
+    const pinMatch = text.match(/([A-Za-z][A-Za-z0-9\s,'./()-]{10,150}\b\d{5,6}\b)/);
+    if (pinMatch) {
+      const addr = pinMatch[1].replace(/[*#\[\]]/g, "").trim();
+      if (addr.length > 15 && addr.length < 250) return addr;
+    }
+
+    // Strategy 4: General street-number based addresses
+    const streetMatch = text.match(/(\d+[,\s/]+[A-Za-z][A-Za-z\s,.'/-]+(?:Road|Rd|Street|St|Avenue|Ave|Blvd|Lane|Drive|Dr|Way|Marg|Nagar|Cross|Main)[^.]*)/i);
+    if (streetMatch) {
+      const addr = streetMatch[1].replace(/[*#\[\]]/g, "").trim().replace(/[,\s]+$/, "");
+      if (addr.length > 15 && addr.length < 250) return addr;
     }
   }
 
@@ -94,32 +148,55 @@ async function firecrawlGeocode(
     return { latitude: null, longitude: null, displayName: null };
   }
 
+  // Use just the city name for search — "Bengaluru" not "Bengaluru, Karnataka, India"
+  const city = extractCity(location);
+
   try {
     const client = await getFirecrawlClient();
     if (!client) return { latitude: null, longitude: null, displayName: null };
 
-    // Use Firecrawl search to find the office address
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const searchResult = await (client as any).search(`${company} office ${location} address`, { limit: 3 });
+    const searchResult = await (client as any).search(`${company} office ${city} address`, { limit: 5 });
 
-    const results = (searchResult?.data || []) as { title?: string; description?: string; url?: string }[];
+    // SDK v4 returns { web: [...] }, raw API returns { data: [...] }
+    const results = (searchResult?.data || searchResult?.web || []) as { title?: string; description?: string; url?: string }[];
     if (results.length === 0) return { latitude: null, longitude: null, displayName: null };
 
-    // Extract address from search result descriptions
-    const address = extractAddressFromSearchResults(results, location);
+    // Try to extract a street address from search results
+    const address = extractAddressFromSearchResults(results, city);
     if (address) {
+      // Try the full extracted address first
       const geo = await nominatimSearch(address);
       if (geo.latitude) return geo;
+      // Extract just the landmark/park name + city (Nominatim works better with short queries)
+      const parkMatch = address.match(/((?:Embassy|RMZ|Manyata|Prestige|Brigade|Salarpuria|Cessna|Bagmane|Kalyani|Divyasree|Pritech|DLF|Cyber|Raheja|Mindspace)\s+[A-Za-z\s]+?(?:Park|World|Space|Tech|Campus|City|Tower|Centre|Center|Plaza))\b/i);
+      if (parkMatch) {
+        const parkQuery = parkMatch[1].trim() + " " + city;
+        const geo2 = await nominatimSearch(parkQuery);
+        if (geo2.latitude) return geo2;
+      }
+
+      // Try the first building/road mention + city
+      const shortParts = address.split(/,/).slice(0, 2).join(",").trim();
+      if (shortParts.length > 10) {
+        const geo3 = await nominatimSearch(shortParts + " " + city);
+        if (geo3.latitude) return geo3;
+      }
     }
 
-    // If no structured address found, try using the first result's description as context
-    // and geocode "{company} {first_result_description_snippet}"
-    const firstDesc = results[0]?.description || "";
-    if (firstDesc.length > 20) {
-      // Extract just the location-relevant part
-      const snippet = firstDesc.slice(0, 100).replace(/[.!?].*$/, "").trim();
-      const geo = await nominatimSearch(`${company} ${snippet}`);
-      if (geo.latitude) return geo;
+    // Last resort: try geocoding the first result description directly
+    for (const r of results) {
+      const desc = r.description || "";
+      if (desc.length < 20) continue;
+      // Take the first sentence/chunk that mentions the city
+      const chunks = desc.split(/[.·]/).filter((c) => c.toLowerCase().includes(city.toLowerCase()));
+      for (const chunk of chunks.slice(0, 2)) {
+        const cleaned = chunk.replace(/[*#\[\]()]/g, "").trim();
+        if (cleaned.length > 10 && cleaned.length < 200) {
+          const geo = await nominatimSearch(cleaned);
+          if (geo.latitude) return geo;
+        }
+      }
     }
   } catch (e) {
     console.error("Firecrawl search geocode error:", e);
@@ -207,8 +284,10 @@ export async function geocodeCompany(
   const locationClean = location.replace(/\s*\(.*?\)\s*/g, "").trim();
 
   try {
-    // Strategy 1: "{company} {location}" — NO COMMA, finds company POI in OSM
-    const poiResult = await nominatimSearch(`${companyClean} ${locationClean}`);
+    // Strategy 1: "{company} {city}" — just the city name, NO commas
+    // Nominatim fails with "Company Bengaluru, Karnataka, India" but works with "Company Bengaluru"
+    const city = extractCity(locationClean);
+    const poiResult = await nominatimSearch(`${companyClean} ${city}`);
     if (poiResult.latitude) {
       cacheResult(cacheKey, poiResult);
       return poiResult;
@@ -225,6 +304,7 @@ export async function geocodeCompany(
 
     // Strategy 3: Firecrawl search — search for company office address, then geocode
     try {
+      // Firecrawl search for office address
       const fcResult = await firecrawlGeocode(companyClean, locationClean);
       if (fcResult.latitude) {
         cacheResult(cacheKey, fcResult);
@@ -234,8 +314,8 @@ export async function geocodeCompany(
       console.error("Firecrawl geocode failed for", company, e);
     }
 
-    // Strategy 4: Fall back to just the location (city-level)
-    const locationResult = await nominatimSearch(locationClean);
+    // Strategy 4: Fall back to just the city (city-level)
+    const locationResult = await nominatimSearch(city);
     cacheResult(cacheKey, locationResult);
     return locationResult;
   } catch (error) {

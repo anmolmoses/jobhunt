@@ -29,7 +29,8 @@ async function firecrawlSearch(query: string, limit = 5): Promise<SearchResult[]
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = await (client as any).search(query, { limit });
-    return (res?.data || []) as SearchResult[];
+    // SDK v4 returns { web: [...] }, raw API returns { data: [...] }
+    return (res?.data || res?.web || []) as SearchResult[];
   } catch (e) {
     console.error("Firecrawl search error:", e);
     return [];

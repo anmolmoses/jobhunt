@@ -36,7 +36,7 @@ export class FirecrawlSearchProvider implements JobSearchProvider {
       limit: params.resultsPerPage || 15,
     });
 
-    const results = (searchResult?.data || []) as {
+    const results = (searchResult?.data || searchResult?.web || []) as {
       title?: string;
       description?: string;
       url?: string;

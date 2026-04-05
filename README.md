@@ -1,6 +1,6 @@
 # JobHunt
 
-AI-powered, self-hosted job hunting application. Upload your resume, let AI find and rank jobs across 8 providers, track applications with a Kanban board, discover networking contacts, and build tailored resumes — all from one place.
+AI-powered, self-hosted job hunting platform. Upload your resume, let AI find and rank jobs across 9 providers, track applications with a Kanban board, discover networking contacts, and build tailored resumes — all from one place.
 
 ## Screenshots
 
@@ -8,7 +8,7 @@ AI-powered, self-hosted job hunting application. Upload your resume, let AI find
 One click to analyze resume, extract preferences, and search across all providers.
 ![Dashboard](docs/screenshots/dashboard.png)
 
-### Job Search — 8 Providers, Smart Filtering
+### Job Search — 9 Providers, Smart Filtering
 All jobs from every search in one place. Filter by company, provider, remote, saved status.
 ![Job Search](docs/screenshots/jobs.png)
 
@@ -28,6 +28,10 @@ Build resumes with a rich text editor. Tailor for specific jobs with AI. Export 
 See all openings on a map with company logos. Click to save, apply, or explore.
 ![Map](docs/screenshots/map.png)
 
+### Networking — LinkedIn Import + Force Graph
+Import LinkedIn connections, visualize your network, find contacts at target companies.
+![Networking](docs/screenshots/networking.png)
+
 ### Preferences — AI Auto-Fill + Questionnaire
 Multi-select experience level, work arrangement, company size. AI extracts from resume.
 ![Preferences](docs/screenshots/preferences.png)
@@ -40,7 +44,7 @@ Configure AI providers, job search APIs, networking tools. Delete data granularl
 
 ### AI-First Job Search
 - **One-click "Find Jobs For Me"** — AI reads your resume, extracts preferences, generates optimized search queries, and searches across all providers
-- **8 job providers**: LinkedIn, Indeed, JSearch (Google Jobs), Adzuna, Remotive, RemoteOK, Jobicy, HackerNews Who's Hiring
+- **9 job providers**: LinkedIn, Indeed, JSearch (Google Jobs), Adzuna, Remotive, RemoteOK, Jobicy, HackerNews Who's Hiring, Firecrawl (web-wide)
 - **Smart filtering** — excludes irrelevant jobs based on your experience level (no intern roles for senior engineers)
 - **ATS keyword scoring** — each job shows how well your resume matches the job description
 - **Date filtering enforced** — all providers honor your date range, with a safety-net filter in the orchestrator
@@ -52,57 +56,70 @@ Configure AI providers, job search APIs, networking tools. Delete data granularl
 - **Resume Builder** — rich text editor with sections for experience, education, skills, projects, certifications
 - **Import from upload** — create a new build pre-populated from any uploaded resume (instant, no re-parsing)
 - **Live preview** — side-by-side preview panel shows the exact PDF layout as you edit
-- **AI Resume Tailoring** — pick a job listing and a base resume, AI rewrites to match that specific role
-- **Professional PDF Export** — ATS-optimized one-page layout with Calibri font, proper alignment, clean formatting
+- **AI Resume Tailoring** — pick a job listing and a base resume, AI rewrites to match that specific role, adds ATS keywords, and explains every change
+- **Professional PDF Export** — ATS-optimized one-page layout with clean formatting via Puppeteer
 - **Multiple resumes** — maintain different versions for different roles
 
 ### Application Tracking
 - **Kanban board** — Saved → Applied → Interviewing → Offered → Rejected
-- **Interview tracker** — schedule interviews, track outcomes, join meeting links
-- **Activity timeline** — visual history of every action
-- **Follow-up reminders** — auto-set 7-day follow-ups after applying
-- **Response rate analytics**
+- **Interview tracker** — schedule interviews with type (phone screen, technical, behavioral, system design, etc.), date, interviewer, meeting link, notes
+- **Interview outcomes** — track pending/passed/failed/rescheduled/cancelled
+- **Activity timeline** — visual history of every status change, interview, and outreach event
+- **Follow-up reminders** — track follow-up dates and next steps
+- **Response rate analytics** — stats dashboard with stage counts and upcoming interviews
 
 ### Company Intelligence
+- **Firecrawl-first enrichment** — scrapes Crunchbase, Glassdoor, AmbitionBox for real company data
+- **AI fallback** — when web data isn't available, AI analyzes the company
 - **Salary data** — real market salaries from JSearch/Glassdoor with proper currency (₹, $, £, €)
-- **Company profiles** — AI-analyzed size, type, industry, culture insights
+- **Company profiles** — size, type, industry, headquarters, funding, valuation, revenue, growth signals, Glassdoor rating
 - **Logo enrichment** — via logo.dev for companies missing logos
-- **Firecrawl integration** — scrape company websites for real office addresses, about pages, and team data (optional, self-hosted)
+- **Cached results** — company intelligence cached by normalized name to avoid redundant lookups
 
 ### Networking
-- **Happenstance integration** — find 2nd-degree contacts at target companies
-- **Outreach tracking** — track who you contacted, via which channel, response status
-- **Hunter.io** — find contact emails at any company
+- **LinkedIn import** — upload your LinkedIn data export (.zip) to import connections and conversations
+- **Network map** — interactive force-directed graph (react-force-graph-2d) showing companies and people with logos
+- **Company matching** — fuzzy-matches LinkedIn connections to saved job companies (handles name variations like "Google LLC" vs "Google India Pvt Ltd")
+- **Outreach tracking** — log outreach by channel (LinkedIn, email, phone) with status progression (planned → sent → replied → meeting scheduled)
+- **Follow-up scheduling** — set and track follow-up dates for outreach
+- **Happenstance integration** — find 2nd-degree contacts at target companies with mutual connection info
+- **Hunter.io** — find contact emails at any company with confidence scores
 
 ### Map View
-- **Geographic job map** — see all openings with company logos as markers
-- **Company-aware geocoding** — pins placed at actual office locations, not just city centers
+- **Geographic job map** — Leaflet-based map with company logos as markers
+- **Multi-strategy geocoding** — Nominatim + Firecrawl-assisted address extraction for accurate pins
+- **Company-aware geocoding** — pins at actual office locations, not just city centers
 - **Sidebar with company list** — search, click to zoom, save jobs from map
+- **SSE-based loading** — real-time progress updates during map data loading
 
 ### Gamification
-- **XP & Levels** — earn XP for searches, applications, outreach, and more
-- **Daily goals** — configurable targets for applications, searches, and outreach
-- **Streaks** — track consecutive days of job search activity
-- **Achievements** — unlock badges for milestones across all categories
-- **Activity heatmap** — GitHub-style contribution graph for your job search
+- **XP & Levels** — 15 progressive levels from Fresh Graduate (0 XP) to Job Hunt Master (30,000 XP)
+- **44 achievements** across 7 categories: application, search, networking, resume, interview, streaks, special
+- **Streak tracking** — consecutive days with configurable protection window (skip 1-2 days without breaking)
+- **Streak multipliers** — up to 1.75x XP for sustained activity
+- **Daily goals** — configurable targets for applications, searches, and outreach with bonus XP
+- **Activity heatmap** — GitHub-style contribution graph (182 days)
 
 ### Automated Job Search
-- **Scheduled searches** — cron-based automated job search on your preferred schedule
-- **Configurable** — date range, results per page, schedule presets, or custom cron expressions
-- **Run history** — track each automated run with status and job counts
+- **Scheduled searches** — cron-based automated job search (default: daily at 9 AM)
+- **Smart queries** — uses your top 3 desired roles with location/remote/experience filters
+- **Run history** — track each automated run with jobs found, queries run, providers used, and duration
 
-### Preferences
-- **AI auto-extraction** — preferences filled from your resume automatically
-- **AI questionnaire** — thoughtful, resume-specific questions to refine your search
-- **Multi-select** — experience level, work arrangement, company size all support multiple selections
+### Settings & Security
+- **API keys encrypted at rest** with AES-256-GCM
+- **Dual-source settings** — configure via environment variables or in-app (DB values override env)
+- **AI provider selection** — choose between Claude and OpenAI with model configuration
+- **Per-provider search toggles** — enable/disable individual job providers
+- **Custom search queries** — add your own queries alongside or instead of AI-generated ones
+- **No telemetry** — all data stored locally in SQLite, nothing sent anywhere except API calls you configure
 
 ## Quick Start
 
 ### Prerequisites
-- Node.js 18+
+- Node.js 20+
 - npm
 
-### Setup
+### Local Development
 
 ```bash
 # Clone the repo
@@ -116,7 +133,7 @@ npm install
 cp .env.example .env.local
 
 # Generate encryption secret (paste into .env.local)
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+openssl rand -hex 32
 
 # Push database schema
 npm run db:push
@@ -127,78 +144,155 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000)
 
-### Configuration
+### Docker (One-Click Deploy)
 
-Add your API keys in `.env.local` or via the Settings page in the app:
+```bash
+# Create your env file
+cp .env.example .env
+# Edit .env with your API keys (at minimum set ENCRYPTION_SECRET)
+
+# Build and run
+docker compose up -d
+```
+
+The app runs at `http://localhost:3000`. SQLite database and resume uploads persist in Docker volumes across restarts.
+
+To use a different port:
+
+```bash
+PORT=8080 docker compose up -d
+```
+
+The Docker image:
+- Uses a multi-stage build (deps → build → production) for a lean image
+- Includes system Chromium for Puppeteer PDF generation
+- Auto-runs database migrations on startup
+- Runs as a non-root user
+
+## Configuration
+
+Add your API keys in `.env.local` (local dev) or `.env` (Docker), or configure them in the Settings page:
 
 | Key | Required | Free Tier | Purpose |
 |-----|----------|-----------|---------|
-| `ENCRYPTION_SECRET` | Yes | N/A | Encrypts API keys in database |
-| `OPENAI_API_KEY` | One AI key needed | Pay-per-use | AI analysis, tailoring |
-| `ANTHROPIC_API_KEY` | One AI key needed | Pay-per-use | AI analysis, tailoring |
+| `ENCRYPTION_SECRET` | Yes | N/A | Encrypts API keys stored in database |
+| `OPENAI_API_KEY` | One AI key needed | Pay-per-use | AI analysis, tailoring, preferences |
+| `ANTHROPIC_API_KEY` | One AI key needed | Pay-per-use | AI analysis, tailoring, preferences |
 | `JSEARCH_API_KEY` | No | 200 req/month | Google Jobs search + salary data |
 | `ADZUNA_APP_ID` + `ADZUNA_APP_KEY` | No | 250 req/day | Job search |
 | `HAPPENSTANCE_API_KEY` | No | Free tier | Network contact search |
 | `LOGODEV_API_KEY` | No | 500K req/month | Company logos |
 | `HUNTER_API_KEY` | No | 25 req/month | Email finder |
-| `FIRECRAWL_API_URL` | No | Self-hosted | Web scraping for company data |
-| `FIRECRAWL_API_KEY` | No | Self-hosted | Auth for Firecrawl instance |
+| `FIRECRAWL_API_URL` + `FIRECRAWL_API_KEY` | No | Self-hosted | Web scraping for company data + web-wide job search |
 
-**LinkedIn, Indeed, Remotive, RemoteOK, Jobicy, HackerNews** — no API keys needed.
+**LinkedIn, Indeed, Remotive, RemoteOK, Jobicy, HackerNews** work without API keys.
 
 ### Optional: Firecrawl (Self-Hosted Web Scraping)
 
-Firecrawl enhances company intelligence, job descriptions, and map accuracy by scraping company websites. It's fully optional and self-hosted via Docker:
+Firecrawl enhances company intelligence, job descriptions, map accuracy, and adds a 9th job search provider. Self-hosted via Docker:
 
 ```bash
 docker run -p 3002:3002 mendableai/firecrawl
 ```
 
-Then set `FIRECRAWL_API_URL=http://localhost:3002` in your `.env.local` or in the Settings page.
+Then set `FIRECRAWL_API_URL=http://localhost:3002` in your env or in Settings.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Next.js 15+ (App Router, Turbopack) |
-| UI | Tailwind CSS v4 + custom components |
-| Database | SQLite via better-sqlite3 + Drizzle ORM |
-| AI | Claude (Anthropic) + OpenAI (configurable) |
+| Framework | Next.js 15 (App Router, Turbopack) |
+| Language | TypeScript |
+| UI | React 19, Tailwind CSS v4, custom shadcn/ui-style components |
 | Rich Text | Tiptap |
-| Maps | Leaflet + OpenStreetMap |
+| Database | SQLite (better-sqlite3) + Drizzle ORM |
+| AI | Claude (Anthropic SDK) + OpenAI SDK |
+| Maps | Leaflet + react-leaflet + OpenStreetMap |
+| Graphs | react-force-graph-2d |
 | PDF | Puppeteer |
-| Web Scraping | Firecrawl (optional, self-hosted) |
+| Web Scraping | Firecrawl (optional) |
+| Scheduling | node-cron |
 
 ## Architecture
 
 ```
 src/
-├── app/                  # Next.js pages + API routes
-│   ├── dashboard/        # AI autopilot, stats
-│   ├── resume/           # Upload, analyze
-│   ├── builder/          # Resume builder + tailor + preview
-│   ├── preferences/      # Job preferences
-│   ├── jobs/             # Job search + filters
-│   ├── tracker/          # Kanban board + interviews
-│   ├── map/              # Geographic job map
-│   ├── saved/            # Saved jobs
-│   ├── networking/       # Outreach tracking
-│   ├── gamification/     # XP, streaks, achievements
-│   └── settings/         # API keys + search config + data management
+├── app/                    # Next.js App Router
+│   ├── api/                # 45+ API endpoints
+│   │   ├── autopilot/      # One-click AI search pipeline
+│   │   ├── cron/           # Scheduled search management
+│   │   ├── dashboard/      # Dashboard stats
+│   │   ├── gamification/   # XP, achievements, streaks, heatmap
+│   │   ├── interviews/     # Interview scheduling & outcomes
+│   │   ├── jobs/           # Search, save, map, geocode, scrape
+│   │   ├── linkedin/       # Import, connections, network graph
+│   │   ├── outreach/       # Contact outreach tracking
+│   │   ├── preferences/    # Job preferences, AI questionnaire
+│   │   ├── resume/         # Upload, analyze, manage
+│   │   ├── resume-builder/ # Build, preview, PDF, AI tailor
+│   │   ├── settings/       # API keys, provider config
+│   │   ├── tracker/        # Application pipeline & timeline
+│   │   ├── company/        # Enrichment, contacts, emails
+│   │   └── search-config/  # Search configuration
+│   ├── dashboard/          # AI autopilot, stats, setup checklist
+│   ├── jobs/               # Job search + advanced filtering
+│   ├── saved/              # Saved jobs with status management
+│   ├── tracker/            # Kanban board + interviews + timeline
+│   ├── resume/             # Resume upload & AI analysis
+│   ├── builder/            # Resume builder + editor + tailor
+│   ├── preferences/        # Job preferences + AI questionnaire
+│   ├── map/                # Geographic job map
+│   ├── networking/         # LinkedIn import, graph, outreach
+│   ├── gamification/       # XP, streaks, achievements, heatmap
+│   └── settings/           # API keys + search config
+├── components/
+│   ├── ui/                 # Primitives (button, card, dialog, toast, etc.)
+│   ├── layout/             # Sidebar navigation
+│   ├── jobs/               # JobCard, JobDetailModal
+│   ├── resume/             # UploadDropzone, RichEditor, AnalysisCard
+│   ├── gamification/       # Widget, heatmap, achievements, streaks
+│   ├── networking/         # NetworkMap (force graph)
+│   ├── map/                # JobMap (Leaflet)
+│   ├── preferences/        # TagInput
+│   └── settings/           # GamificationSettings, SearchConfig
+├── db/
+│   ├── index.ts            # SQLite connection (WAL mode, foreign keys)
+│   └── schema.ts           # 20 Drizzle ORM tables
 ├── lib/
-│   ├── ai/               # AI providers + prompts
-│   ├── jobs/             # 8 job providers + orchestrator + ATS scoring
-│   ├── resume/           # Parser, analyzer, structurer, PDF generator
-│   ├── company/          # Enrichment, logos, Hunter.io
-│   ├── firecrawl/        # Web scraping client
-│   ├── gamification/     # XP, levels, streaks, achievements
-│   ├── happenstance/     # Network search client
-│   ├── cron/             # Scheduled job search
-│   └── geo/              # Geocoding (company-aware)
-├── components/           # UI components
-├── db/                   # Schema + connection
-└── types/                # TypeScript definitions
+│   ├── ai/                 # Claude & OpenAI providers, prompts, JSON repair
+│   ├── jobs/               # 9 job providers, orchestrator, ATS scoring
+│   ├── resume/             # Parser, analyzer, structurer, PDF generator
+│   ├── company/            # Enrichment, fuzzy matching, logos, Hunter.io
+│   ├── firecrawl/          # Web scraping & search client
+│   ├── gamification/       # XP engine, achievements, streaks, daily goals
+│   ├── happenstance/       # Network search client
+│   ├── geo/                # Geocoding (Nominatim + Firecrawl)
+│   ├── cron/               # Scheduled job search service & runner
+│   ├── encryption.ts       # AES-256-GCM encryption
+│   └── settings.ts         # Dual-source settings (env + DB)
+└── types/                  # TypeScript interfaces
 ```
+
+## Database
+
+SQLite with 20 tables, WAL mode for concurrent reads, foreign keys enforced with cascade deletes.
+
+| Table | Purpose |
+|-------|---------|
+| `settings` | Encrypted key-value configuration |
+| `resumes` / `resumeAnalyses` | Uploaded resumes and AI scoring |
+| `resumeBuilds` | User-created resumes with rich text sections |
+| `jobPreferences` | Desired roles, skills, location, salary, experience level |
+| `jobSearches` / `jobResults` | Search history and normalized results |
+| `savedJobs` | Application tracking with status pipeline |
+| `interviews` | Scheduled interviews with outcomes |
+| `companyEnrichment` | Cached company intelligence |
+| `linkedinImports` / `linkedinConnections` / `linkedinMessages` | LinkedIn data |
+| `networkContacts` / `outreachTracking` | Networking contacts and outreach log |
+| `activityLog` | Event timeline |
+| `gamificationProfile` / `gamificationDailyLog` / `gamificationXpEvents` / `gamificationAchievements` | XP, streaks, achievements |
+| `cronConfig` / `cronRunHistory` | Automated search scheduling and history |
+| `geocodeCache` | Location geocoding cache |
 
 ## Job Providers
 
@@ -212,25 +306,34 @@ src/
 | RemoteOK | Official API | No | Client-side |
 | Jobicy | Official API | No | Client-side |
 | HackerNews | Algolia API | No | Thread recency check |
+| Firecrawl | Web search + scraping | Yes | N/A |
 
 All providers are backed by an orchestrator-level safety-net date filter.
 
-## Contributing
+## Scripts
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start dev server (Turbopack) |
+| `npm run build` | Production build |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint |
+| `npm run db:push` | Push schema to SQLite |
+| `npm run db:generate` | Generate Drizzle migrations |
+| `npm run db:migrate` | Run Drizzle migrations |
+| `npm run db:studio` | Open Drizzle Studio (DB browser) |
 
 ## Security
 
-- API keys are encrypted at rest with AES-256-GCM
-- All data stored locally in SQLite — nothing sent to external servers except API calls you configure
+- API keys encrypted at rest with AES-256-GCM (IV + auth tag + ciphertext)
+- All data stored locally in SQLite — nothing leaves your machine except API calls you configure
 - No telemetry, no analytics, no tracking
-
-See [SECURITY.md](SECURITY.md) for security policy and recommendations.
+- Runs as non-root user in Docker
 
 ## License
 
-[MIT](LICENSE)
+ISC
 
 ## Acknowledgments
 
-Built with Claude Code by Anthropic.
+Built with [Claude Code](https://claude.ai/code) by Anthropic.

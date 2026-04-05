@@ -1,0 +1,18 @@
+services:
+  jobhunt:
+    build: .
+    container_name: jobhunt
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - jobhunt-data:/app/data
+      - jobhunt-uploads:/app/uploads
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+
+volumes:
+  jobhunt-data:
+  jobhunt-uploads:

@@ -1,0 +1,31 @@
+node_modules
+.next
+.git
+.gitignore
+.dockerignore
+.env
+.env*.local
+.claude
+
+# Data & uploads (mounted as volumes)
+data
+uploads
+drizzle
+
+# Docker services
+docker
+
+# Internal docs
+docs/internal
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Misc
+.DS_Store
+*.md
+!package.json
+LICENSE

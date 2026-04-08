@@ -81,6 +81,7 @@ export async function GET() {
       { id: "remotive", name: "Remotive", requiresKey: false },
       { id: "remoteok", name: "RemoteOK", requiresKey: false },
       { id: "jobicy", name: "Jobicy", requiresKey: false },
+      { id: "greenhouse", name: "Greenhouse", requiresKey: false },
       { id: "hackernews", name: "Hacker News", requiresKey: false },
       { id: "firecrawl", name: "Firecrawl Web Search", requiresKey: true, keyName: "firecrawl_api_url" },
     ];

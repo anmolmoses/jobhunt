@@ -153,17 +153,50 @@ export default function DashboardPage() {
         }
       }
 
-      // Step 3: Extract preferences
+      // Step 3: Extract preferences + load search config
       updateStep("preferences", { status: "running", detail: "AI is reading your resume..." });
       try {
-        const prefRes = await fetch("/api/preferences/auto-generate", { method: "POST" });
+        // Fetch search config and AI preferences in parallel
+        const [prefRes, configRes] = await Promise.all([
+          fetch("/api/preferences/auto-generate", { method: "POST" }),
+          fetch("/api/search-config"),
+        ]);
+
+        // Parse search config
+        let customQueries: string[] = [];
+        let useCustomOnly = false;
+        let configDatePosted = "7d";
+        let maxQueries = 3;
+        if (configRes.ok) {
+          const config = await configRes.json();
+          customQueries = config.customQueries || [];
+          useCustomOnly = config.useCustomQueriesOnly || false;
+          configDatePosted = config.datePosted || "7d";
+          maxQueries = config.maxQueries || 3;
+        }
+
         if (prefRes.ok) {
           const prefData = await prefRes.json();
           const prefs = prefData.preferences || {};
-          const queries = prefData.searchQueries || [];
+          const aiQueries: string[] = prefData.searchQueries || [];
           const roles = prefs.desiredRoles || [];
           const skills = prefs.desiredSkills || [];
           const locations = prefs.preferredLocations || [];
+
+          // Build final query list: honor custom queries setting
+          let finalQueries: string[];
+          if (useCustomOnly && customQueries.length > 0) {
+            finalQueries = customQueries;
+          } else if (customQueries.length > 0) {
+            finalQueries = [...customQueries, ...aiQueries.filter((q: string) => !customQueries.includes(q))];
+          } else if (aiQueries.length > 0) {
+            finalQueries = aiQueries;
+          } else {
+            finalQueries = roles.length > 0 ? [roles.join(", ")] : ["software developer"];
+          }
+
+          // When using custom queries only, run all of them; otherwise respect maxQueries
+          const queriesToRun = useCustomOnly ? finalQueries : finalQueries.slice(0, maxQueries);
 
           updateStep("preferences", {
             status: "done",
@@ -174,18 +207,18 @@ export default function DashboardPage() {
             roles,
             skills: skills.slice(0, 8),
             location: locations[0] || "Remote",
-            queries,
+            queries: queriesToRun,
           }));
 
           // Step 4: Search
-          updateStep("search", { status: "running", detail: `Searching ${queries.length} queries across LinkedIn, JSearch, Adzuna, Remotive...` });
+          updateStep("search", { status: "running", detail: `Searching ${queriesToRun.length} ${useCustomOnly ? "custom" : ""} queries across job boards...` });
 
           const allJobs: ExtendedJob[] = [];
-          for (let i = 0; i < Math.min(queries.length, 3); i++) {
-            const q = queries[i];
+          for (let i = 0; i < queriesToRun.length; i++) {
+            const q = queriesToRun[i];
             updateStep("search", {
               status: "running",
-              detail: `[${i + 1}/${Math.min(queries.length, 3)}] Searching: "${q}"${locations[0] ? ` in ${locations[0]}` : ""}`,
+              detail: `[${i + 1}/${queriesToRun.length}] Searching: "${q}"${locations[0] ? ` in ${locations[0]}` : ""}`,
             });
 
             try {
@@ -195,7 +228,7 @@ export default function DashboardPage() {
                 body: JSON.stringify({
                   query: q,
                   location: locations[0] || undefined,
-                  datePosted: "7d",
+                  datePosted: configDatePosted,
                   experienceLevel: prefs.experienceLevel || undefined,
                 }),
               });
@@ -399,7 +432,7 @@ export default function DashboardPage() {
                   {searchContext.queries && searchContext.queries.length > 0 && (
                     <div className="flex items-start gap-2 text-xs">
                       <Brain className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
-                      <span className="text-muted-foreground">AI queries:</span>
+                      <span className="text-muted-foreground">Search queries:</span>
                       <div className="flex flex-wrap gap-1">
                         {searchContext.queries.map((q, i) => (
                           <Badge key={i} variant="outline" className="text-[10px] font-mono">{q}</Badge>

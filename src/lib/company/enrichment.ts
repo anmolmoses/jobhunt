@@ -1,8 +1,6 @@
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { getSetting } from "@/lib/settings";
-import { createAIProvider } from "@/lib/ai/provider";
-import { COMPANY_ENRICHMENT_SYSTEM_PROMPT, COMPANY_ENRICHMENT_USER_PROMPT } from "@/lib/ai/prompts";
 import {
   isFirecrawlConfigured,
   searchCompanyIntelligence,
@@ -164,26 +162,25 @@ export async function enrichCompany(
           `Salary range from web: ${intel.salaryRange}.`;
       }
     } else {
-      // Firecrawl search returned nothing — fall back to AI
-      const aiResult = await analyzeCompany(companyName, jobTitle, location, jobDescription);
+      // Firecrawl search returned nothing — return empty company data (no AI fallback)
       companyInfo = {
-        ...aiResult,
+        companySize: null, companySizeCategory: null, companyType: null,
+        industry: null, description: null, headquarters: null, aiInsights: null,
         founded: null, funding: null, fundingStage: null, valuation: null,
         investors: null, revenue: null, growthSignals: null,
-        glassdoorRating: null, dataSources: ["AI"],
+        glassdoorRating: null, dataSources: [],
       };
     }
   } else {
-    // No Firecrawl: pure AI path
-    [salaryData, companyInfo] = await Promise.all([
-      fetchSalaryData(jobTitle, location),
-      analyzeCompany(companyName, jobTitle, location, jobDescription).then((ai) => ({
-        ...ai,
-        founded: null, funding: null, fundingStage: null, valuation: null,
-        investors: null, revenue: null, growthSignals: null,
-        glassdoorRating: null, dataSources: ["AI"] as string[],
-      })),
-    ]);
+    // No Firecrawl configured — only fetch salary data, no AI
+    salaryData = await fetchSalaryData(jobTitle, location);
+    companyInfo = {
+      companySize: null, companySizeCategory: null, companyType: null,
+      industry: null, description: null, headquarters: null, aiInsights: null,
+      founded: null, funding: null, fundingStage: null, valuation: null,
+      investors: null, revenue: null, growthSignals: null,
+      glassdoorRating: null, dataSources: [],
+    };
   }
 
   // Cache the results
@@ -298,55 +295,3 @@ async function fetchSalaryData(jobTitle: string, location: string | null): Promi
   }
 }
 
-/** AI fallback — only used when Firecrawl is not configured or returns no data */
-async function analyzeCompany(
-  companyName: string,
-  jobTitle: string,
-  location: string | null,
-  jobDescription: string | null,
-): Promise<Omit<CompanyInfo, "founded" | "funding" | "fundingStage" | "valuation" | "investors" | "revenue" | "growthSignals" | "glassdoorRating" | "dataSources">> {
-  try {
-    const aiProvider = await createAIProvider();
-
-    const descriptionContent = jobDescription ? jobDescription.slice(0, 3000) : "No description available";
-    const userContent = COMPANY_ENRICHMENT_USER_PROMPT(companyName, jobTitle, location || "Unknown", descriptionContent);
-
-    const rawResponse = await aiProvider.complete({
-      messages: [
-        { role: "system", content: COMPANY_ENRICHMENT_SYSTEM_PROMPT },
-        { role: "user", content: userContent },
-      ],
-      maxTokens: 512,
-      temperature: 0.2,
-      responseFormat: "json",
-    });
-
-    let jsonStr = rawResponse.trim();
-    if (jsonStr.startsWith("```")) {
-      jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
-    }
-
-    const result = JSON.parse(jsonStr);
-
-    return {
-      companySize: result.companySize || null,
-      companySizeCategory: result.companySizeCategory || null,
-      companyType: result.companyType || null,
-      industry: result.industry || null,
-      description: result.description || null,
-      headquarters: result.headquarters || null,
-      aiInsights: result.aiInsights || null,
-    };
-  } catch (error) {
-    console.error("Company analysis error:", error);
-    return {
-      companySize: null,
-      companySizeCategory: null,
-      companyType: null,
-      industry: null,
-      description: null,
-      headquarters: null,
-      aiInsights: null,
-    };
-  }
-}

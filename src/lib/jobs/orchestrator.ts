@@ -7,6 +7,7 @@ import { RemoteOKProvider } from "./remoteok";
 import { JobicyProvider } from "./jobicy";
 import { HackerNewsProvider } from "./hackernews";
 import { FirecrawlSearchProvider } from "./firecrawl-search";
+import { GreenhouseProvider } from "./greenhouse";
 import { scoreATSMatch } from "./ats-score";
 import { db, schema } from "@/db";
 import { desc, eq } from "drizzle-orm";
@@ -59,6 +60,7 @@ const providers = [
   new JobicyProvider(),
   new HackerNewsProvider(),
   new FirecrawlSearchProvider(),
+  new GreenhouseProvider(),
 ];
 
 interface SearchResult {

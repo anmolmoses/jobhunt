@@ -16,6 +16,8 @@ import {
   Settings,
   Briefcase,
   Trophy,
+  BookOpen,
+  Building2,
 } from "lucide-react";
 
 const navItems = [
@@ -28,6 +30,8 @@ const navItems = [
   { href: "/map", label: "Job Map", icon: Map },
   { href: "/saved", label: "Saved Jobs", icon: Bookmark },
   { href: "/networking", label: "Networking", icon: Users },
+  { href: "/portals", label: "Company Portals", icon: Building2 },
+  { href: "/interview-prep", label: "Interview Prep", icon: BookOpen },
   { href: "/gamification", label: "Progress", icon: Trophy },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

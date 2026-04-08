@@ -26,7 +26,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN mkdir -p public
+RUN mkdir -p public data
+# Initialize DB schema before build so Next.js can pre-render API routes
+RUN npx drizzle-kit push 2>/dev/null || true
+# Limit build workers to 1 to prevent concurrent SQLite access
+ENV NEXT_BUILD_WORKERS=1
 RUN npm run build
 
 # ---- Stage 3: Production ----

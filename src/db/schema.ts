@@ -423,6 +423,100 @@ export const gamificationXpEvents = sqliteTable("gamification_xp_events", {
     .default(sql`(datetime('now'))`),
 });
 
+// Company portals — tracked company career pages for direct scanning
+export const companyPortals = sqliteTable("company_portals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  companyName: text("company_name").notNull(),
+  normalizedName: text("normalized_name").notNull().unique(),
+  careersUrl: text("careers_url").notNull(),
+  apiEndpoint: text("api_endpoint"), // e.g. "https://boards-api.greenhouse.io/v1/boards/anthropic/jobs"
+  scanMethod: text("scan_method").notNull().default("firecrawl"), // "greenhouse", "lever", "ashby", "firecrawl"
+  category: text("category"), // "AI Labs", "Enterprise", "Startup", etc.
+  logoUrl: text("logo_url"),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  titleFilters: text("title_filters").notNull().default("[]"), // JSON: positive keywords to match
+  titleExclusions: text("title_exclusions").notNull().default("[]"), // JSON: negative keywords to exclude
+  lastScannedAt: text("last_scanned_at"),
+  lastScanJobCount: integer("last_scan_job_count"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// Portal scan results — jobs found from scanning company portals
+export const portalScanResults = sqliteTable("portal_scan_results", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  portalId: integer("portal_id")
+    .notNull()
+    .references(() => companyPortals.id, { onDelete: "cascade" }),
+  externalId: text("external_id"), // Job ID from the ATS
+  title: text("title").notNull(),
+  department: text("department"),
+  location: text("location"),
+  applyUrl: text("apply_url"),
+  description: text("description"),
+  isRemote: integer("is_remote", { mode: "boolean" }).notNull().default(false),
+  postedAt: text("posted_at"),
+  dedupeKey: text("dedupe_key"),
+  dismissed: integer("dismissed", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// Interview stories — STAR+Reflection format story bank
+export const interviewStories = sqliteTable("interview_stories", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
+  theme: text("theme").notNull(), // "leadership", "conflict", "failure", "innovation", "teamwork", "technical", "communication", "growth"
+  situation: text("situation").notNull(),
+  task: text("task").notNull(),
+  action: text("action").notNull(),
+  result: text("result").notNull(),
+  reflection: text("reflection"), // What I learned
+  skills: text("skills").notNull().default("[]"), // JSON array of skills demonstrated
+  questionsItAnswers: text("questions_it_answers").notNull().default("[]"), // JSON: e.g. "Tell me about a time you..."
+  source: text("source").notNull().default("manual"), // "manual", "resume_extracted"
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// Job evaluations — 10-dimension scoring (career-ops style)
+export const jobEvaluations = sqliteTable("job_evaluations", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  jobResultId: integer("job_result_id")
+    .references(() => jobResults.id, { onDelete: "cascade" }),
+  savedJobId: integer("saved_job_id")
+    .references(() => savedJobs.id, { onDelete: "cascade" }),
+  // 10-dimension scores (0-10 scale)
+  northStarAlignment: real("north_star_alignment"), // 25% — Does this align with career goals?
+  cvMatch: real("cv_match"), // 15% — How well do skills/experience match?
+  seniorityFit: real("seniority_fit"), // 15% — Right level?
+  compensation: real("compensation"), // 10% — Fair pay?
+  growthTrajectory: real("growth_trajectory"), // 10% — Career growth potential?
+  remoteQuality: real("remote_quality"), // 5% — Remote/hybrid quality?
+  companyReputation: real("company_reputation"), // 5% — Company brand/stability?
+  techStackModernity: real("tech_stack_modernity"), // 5% — Modern tech?
+  speedToOffer: real("speed_to_offer"), // 5% — Fast hiring process?
+  cultureSignals: real("culture_signals"), // 5% — Culture fit signals?
+  overallScore: real("overall_score"), // Weighted composite
+  summary: text("summary"),
+  pros: text("pros").notNull().default("[]"), // JSON array
+  cons: text("cons").notNull().default("[]"), // JSON array
+  recommendation: text("recommendation"), // "strong_apply", "apply", "maybe", "skip"
+  rawData: text("raw_data"), // Full JSON response
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 export const gamificationAchievements = sqliteTable("gamification_achievements", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   achievementId: text("achievement_id").notNull().unique(),

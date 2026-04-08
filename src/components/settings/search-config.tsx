@@ -392,19 +392,23 @@ export function SearchConfigSettings() {
                 key={p.id}
                 onClick={() => p.configured && toggleProvider(p.id)}
                 disabled={!p.configured}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                className={`flex items-center gap-2 rounded-lg border-2 px-3 py-2.5 text-left transition-all ${
                   !p.configured
-                    ? "opacity-40 cursor-not-allowed border-dashed"
+                    ? "opacity-40 cursor-not-allowed border-dashed border-muted"
                     : p.enabled
-                    ? "bg-primary/5 border-foreground/20"
-                    : "hover:bg-muted"
+                    ? "bg-foreground text-background border-foreground shadow-sm"
+                    : "border-border hover:border-foreground/40 hover:bg-muted"
                 }`}
               >
-                <div className={`h-2 w-2 rounded-full shrink-0 ${
-                  !p.configured ? "bg-muted-foreground" : p.enabled ? "bg-foreground" : "bg-muted-foreground/30"
+                <div className={`h-2.5 w-2.5 rounded-full shrink-0 border ${
+                  !p.configured
+                    ? "bg-muted-foreground/30 border-muted-foreground/30"
+                    : p.enabled
+                    ? "bg-background border-background"
+                    : "bg-transparent border-muted-foreground/40"
                 }`} />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium">{p.name}</p>
+                  <p className={`text-sm font-medium ${p.enabled && p.configured ? "text-background" : ""}`}>{p.name}</p>
                   {!p.configured && (
                     <p className="text-[10px] text-muted-foreground">Needs API key</p>
                   )}

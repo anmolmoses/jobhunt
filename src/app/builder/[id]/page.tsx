@@ -593,8 +593,8 @@ export default function ResumeEditorPage() {
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setTailorResumeSource("build")}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                  tailorResumeSource === "build" ? "bg-primary/5 border-foreground/20 font-medium" : "hover:bg-muted"
+                className={`flex items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm transition-all ${
+                  tailorResumeSource === "build" ? "bg-foreground text-background border-foreground font-medium shadow-sm" : "border-border hover:border-foreground/40 hover:bg-muted"
                 }`}
               >
                 <FileText className="h-3.5 w-3.5" />
@@ -604,8 +604,8 @@ export default function ResumeEditorPage() {
                 <button
                   key={r.id}
                   onClick={() => setTailorResumeSource(r.id)}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                    tailorResumeSource === r.id ? "bg-primary/5 border-foreground/20 font-medium" : "hover:bg-muted"
+                  className={`flex items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm transition-all ${
+                    tailorResumeSource === r.id ? "bg-foreground text-background border-foreground font-medium shadow-sm" : "border-border hover:border-foreground/40 hover:bg-muted"
                   }`}
                 >
                   <FileText className="h-3.5 w-3.5" />

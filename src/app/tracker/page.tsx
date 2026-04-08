@@ -93,11 +93,11 @@ interface TrackerData {
 }
 
 const PIPELINE_COLUMNS = [
-  { key: "saved", label: "Saved", color: "bg-foreground/30", icon: Briefcase },
-  { key: "applied", label: "Applied", color: "bg-foreground/50", icon: Target },
-  { key: "interviewing", label: "Interviewing", color: "bg-foreground/70", icon: Video },
-  { key: "offered", label: "Offered", color: "bg-foreground/90", icon: TrendingUp },
-  { key: "rejected", label: "Rejected", color: "bg-foreground/40", icon: AlertCircle },
+  { key: "saved", label: "Saved", color: "bg-zinc-400 dark:bg-zinc-500", icon: Briefcase },
+  { key: "applied", label: "Applied", color: "bg-blue-500 dark:bg-blue-400", icon: Target },
+  { key: "interviewing", label: "Interviewing", color: "bg-amber-500 dark:bg-amber-400", icon: Video },
+  { key: "offered", label: "Offered", color: "bg-green-500 dark:bg-green-400", icon: TrendingUp },
+  { key: "rejected", label: "Rejected", color: "bg-red-400 dark:bg-red-500", icon: AlertCircle },
 ];
 
 const INTERVIEW_TYPES = [

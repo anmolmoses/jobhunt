@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   ExternalLink, MapPin, Building2, Calendar, DollarSign, Plus, BookmarkCheck,
-  Users, Briefcase, TrendingUp, Loader2, Brain, Globe, UserPlus, Send, Link2, Mail,
+  Users, Briefcase, TrendingUp, Loader2, Globe, UserPlus, Send, Link2, Mail,
+  BarChart3, FileText, MessageSquare, ChevronDown, ChevronUp, Copy, Check,
+  Target, Zap, Shield, Rocket, Star,
 } from "lucide-react";
 import type { NormalizedJob } from "@/types/jobs";
 
@@ -128,6 +130,23 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
   const [scrapedDescription, setScrapedDescription] = useState<string | null>(null);
   const [scrapeLoading, setScrapeLoading] = useState(false);
 
+  // Evaluation
+  const [evaluation, setEvaluation] = useState<Record<string, unknown> | null>(null);
+  const [evalLoading, setEvalLoading] = useState(false);
+  const [showEval, setShowEval] = useState(false);
+
+  // Application assist
+  const [appAssist, setAppAssist] = useState<Record<string, unknown> | null>(null);
+  const [appAssistLoading, setAppAssistLoading] = useState(false);
+  const [showAppAssist, setShowAppAssist] = useState(false);
+
+  // Outreach
+  const [outreach, setOutreach] = useState<Record<string, unknown> | null>(null);
+  const [outreachLoading, setOutreachLoading] = useState(false);
+  const [showOutreach, setShowOutreach] = useState(false);
+
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
   // Fetch company enrichment + LinkedIn matches when modal opens
   useEffect(() => {
     if (!open || !job) {
@@ -137,6 +156,12 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
       setContactsError(null);
       setLinkedinMatches([]);
       setScrapedDescription(null);
+      setEvaluation(null);
+      setShowEval(false);
+      setAppAssist(null);
+      setShowAppAssist(false);
+      setOutreach(null);
+      setShowOutreach(false);
       return;
     }
 
@@ -237,6 +262,81 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
     }
   };
 
+  const handleEvaluate = async () => {
+    if (!job) return;
+    setEvalLoading(true);
+    setShowEval(true);
+    try {
+      // Check for existing evaluation first
+      const checkRes = await fetch(`/api/jobs/evaluate?jobResultId=${job.dbId}`);
+      if (checkRes.ok) {
+        const existing = await checkRes.json();
+        if (existing) { setEvaluation(existing); setEvalLoading(false); return; }
+      }
+      const res = await fetch("/api/jobs/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobResultId: job.dbId,
+          jobTitle: job.title,
+          company: job.company,
+          location: job.location,
+          description: scrapedDescription || job.description,
+        }),
+      });
+      if (res.ok) setEvaluation(await res.json());
+    } catch { /* silent */ }
+    finally { setEvalLoading(false); }
+  };
+
+  const handleAppAssist = async () => {
+    if (!job) return;
+    setAppAssistLoading(true);
+    setShowAppAssist(true);
+    try {
+      const res = await fetch("/api/application-assist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "application",
+          jobTitle: job.title,
+          company: job.company,
+          location: job.location,
+          description: scrapedDescription || job.description,
+        }),
+      });
+      if (res.ok) setAppAssist(await res.json());
+    } catch { /* silent */ }
+    finally { setAppAssistLoading(false); }
+  };
+
+  const handleOutreach = async () => {
+    if (!job) return;
+    setOutreachLoading(true);
+    setShowOutreach(true);
+    try {
+      const res = await fetch("/api/application-assist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "outreach",
+          jobTitle: job.title,
+          company: job.company,
+          location: job.location,
+          description: scrapedDescription || job.description,
+        }),
+      });
+      if (res.ok) setOutreach(await res.json());
+    } catch { /* silent */ }
+    finally { setOutreachLoading(false); }
+  };
+
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
   if (!job) return null;
 
   const hasSalary = companyData?.salary?.median || companyData?.salary?.min;
@@ -303,12 +403,12 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
             {enrichLoading ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Analyzing company &amp; fetching salary data...
+                Fetching company &amp; salary data...
               </div>
             ) : (hasSalary || hasCompanyInfo) ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm font-semibold">
-                  <Brain className="h-4 w-4 text-primary" />
+                  <Building2 className="h-4 w-4 text-primary" />
                   Company Intelligence
                 </div>
 
@@ -461,7 +561,7 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
                   </div>
                 )}
 
-                {/* Insights */}
+                {/* Web-sourced insights summary */}
                 {companyData?.company?.aiInsights && (
                   <div className="rounded-lg bg-background/60 p-3 mt-1">
                     <p className="text-xs text-muted-foreground italic">
@@ -726,6 +826,255 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
               />
             ) : null}
           </div>
+        )}
+
+        {/* Action Buttons Row */}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={handleEvaluate} disabled={evalLoading}>
+            {evalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart3 className="h-4 w-4" />}
+            {evaluation ? "View Evaluation" : "Evaluate Job"}
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleAppAssist} disabled={appAssistLoading}>
+            {appAssistLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+            Application Assist
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleOutreach} disabled={outreachLoading}>
+            {outreachLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
+            LinkedIn Outreach
+          </Button>
+        </div>
+
+        {/* 10-Dimension Evaluation */}
+        {showEval && (
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <button
+                className="flex items-center justify-between w-full text-sm font-semibold"
+                onClick={() => setShowEval(!showEval)}
+              >
+                <span className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-primary" />
+                  Job Evaluation
+                  {evaluation && (
+                    <Badge variant={
+                      (evaluation.recommendation as string) === "strong_apply" ? "success" :
+                      (evaluation.recommendation as string) === "apply" ? "secondary" :
+                      (evaluation.recommendation as string) === "maybe" ? "outline" : "destructive"
+                    }>
+                      {(evaluation.recommendation as string)?.replace("_", " ")}
+                    </Badge>
+                  )}
+                </span>
+                {showEval ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+
+              {evalLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-3">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Evaluating job against your profile...
+                </div>
+              ) : evaluation ? (
+                <div className="mt-3 space-y-3">
+                  {/* Overall score */}
+                  <div className="flex items-center gap-3">
+                    <div className="text-2xl font-bold">{evaluation.overallScore as number}/10</div>
+                    <p className="text-sm text-muted-foreground flex-1">{evaluation.summary as string}</p>
+                  </div>
+
+                  {/* Dimension bars */}
+                  <div className="grid gap-1.5">
+                    {[
+                      { key: "northStarAlignment", label: "Career Alignment", weight: "25%", icon: Target },
+                      { key: "cvMatch", label: "CV Match", weight: "15%", icon: FileText },
+                      { key: "seniorityFit", label: "Seniority Fit", weight: "15%", icon: Shield },
+                      { key: "compensation", label: "Compensation", weight: "10%", icon: DollarSign },
+                      { key: "growthTrajectory", label: "Growth", weight: "10%", icon: Rocket },
+                      { key: "remoteQuality", label: "Remote Quality", weight: "5%", icon: MapPin },
+                      { key: "companyReputation", label: "Reputation", weight: "5%", icon: Star },
+                      { key: "techStackModernity", label: "Tech Stack", weight: "5%", icon: Zap },
+                      { key: "speedToOffer", label: "Hiring Speed", weight: "5%", icon: TrendingUp },
+                      { key: "cultureSignals", label: "Culture", weight: "5%", icon: Users },
+                    ].map(({ key, label, weight, icon: Icon }) => {
+                      const score = (evaluation[key] as number) || 0;
+                      return (
+                        <div key={key} className="flex items-center gap-2 text-xs">
+                          <Icon className="h-3 w-3 text-muted-foreground shrink-0" />
+                          <span className="w-24 shrink-0 text-muted-foreground">{label} <span className="opacity-50">({weight})</span></span>
+                          <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-foreground/70"
+                              style={{ width: `${score * 10}%` }}
+                            />
+                          </div>
+                          <span className="w-6 text-right font-medium">{score}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Pros/Cons */}
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {(evaluation.pros as string[])?.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Pros</p>
+                        <ul className="space-y-0.5">
+                          {(evaluation.pros as string[]).map((p, i) => (
+                            <li key={i} className="text-xs flex gap-1.5">
+                              <span className="text-green-600 shrink-0">+</span> {p}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {(evaluation.cons as string[])?.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Cons</p>
+                        <ul className="space-y-0.5">
+                          {(evaluation.cons as string[]).map((c, i) => (
+                            <li key={i} className="text-xs flex gap-1.5">
+                              <span className="text-red-600 shrink-0">-</span> {c}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Key gaps + interview tips */}
+                  {(evaluation.keyGaps as string[])?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Gaps to Address</p>
+                      <div className="flex flex-wrap gap-1">
+                        {(evaluation.keyGaps as string[]).map((g, i) => (
+                          <Badge key={i} variant="outline" className="text-xs">{g}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(evaluation.interviewTips as string[])?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Interview Tips</p>
+                      <ul className="space-y-0.5">
+                        {(evaluation.interviewTips as string[]).map((t, i) => (
+                          <li key={i} className="text-xs text-muted-foreground">• {t}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Application Assist */}
+        {showAppAssist && (
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-2 text-sm font-semibold mb-3">
+                <FileText className="h-4 w-4 text-primary" />
+                Application Assist
+              </div>
+
+              {appAssistLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating personalized application answers...
+                </div>
+              ) : appAssist ? (
+                <div className="space-y-3">
+                  {[
+                    { key: "coverLetterDraft", label: "Cover Letter Draft" },
+                    { key: "whyThisRole", label: "Why This Role?" },
+                    { key: "whyThisCompany", label: "Why This Company?" },
+                    { key: "biggestStrength", label: "Biggest Strength" },
+                    { key: "challengeOvercome", label: "Challenge Overcome" },
+                    { key: "whatYouBring", label: "What You Bring" },
+                    { key: "salaryExpectation", label: "Salary Expectation" },
+                  ].map(({ key, label }) => {
+                    const text = appAssist[key] as string;
+                    if (!text) return null;
+                    return (
+                      <div key={key} className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-medium text-muted-foreground">{label}</p>
+                          <button
+                            onClick={() => copyToClipboard(text, key)}
+                            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                          >
+                            {copiedField === key ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                            {copiedField === key ? "Copied" : "Copy"}
+                          </button>
+                        </div>
+                        <p className="text-xs bg-muted/50 rounded-lg p-2.5 whitespace-pre-wrap">{text}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* LinkedIn Outreach */}
+        {showOutreach && (
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-2 text-sm font-semibold mb-3">
+                <MessageSquare className="h-4 w-4 text-primary" />
+                LinkedIn Outreach Messages
+              </div>
+
+              {outreachLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating outreach messages...
+                </div>
+              ) : outreach ? (
+                <div className="space-y-3">
+                  {[
+                    { key: "hiringManagerMessage", label: "Hiring Manager", icon: "👤" },
+                    { key: "recruiterMessage", label: "Recruiter", icon: "🎯" },
+                    { key: "peerMessage", label: "Team Peer", icon: "🤝" },
+                    { key: "followUpEmail", label: "Follow-up Email", icon: "📧" },
+                  ].map(({ key, label, icon }) => {
+                    const text = outreach[key] as string;
+                    if (!text) return null;
+                    return (
+                      <div key={key} className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-medium text-muted-foreground">{icon} {label}</p>
+                          <div className="flex items-center gap-2">
+                            {key !== "followUpEmail" && (
+                              <span className="text-xs text-muted-foreground opacity-50">{text.length}/300</span>
+                            )}
+                            <button
+                              onClick={() => copyToClipboard(text, key)}
+                              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                            >
+                              {copiedField === key ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                              {copiedField === key ? "Copied" : "Copy"}
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-xs bg-muted/50 rounded-lg p-2.5 whitespace-pre-wrap">{text}</p>
+                      </div>
+                    );
+                  })}
+                  {(outreach.searchQueries as string[])?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">LinkedIn Search Queries</p>
+                      <div className="space-y-1">
+                        {(outreach.searchQueries as string[]).map((q, i) => (
+                          <p key={i} className="text-xs font-mono bg-muted/50 rounded px-2 py-1">{q}</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
         )}
 
         <div className="flex gap-2 justify-end">

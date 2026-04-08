@@ -42,10 +42,10 @@ interface SavedJob {
 
 const STATUS_OPTIONS: { value: JobStatus; label: string; color: string }[] = [
   { value: "saved", label: "Saved", color: "bg-muted text-foreground" },
-  { value: "applied", label: "Applied", color: "bg-foreground/10 text-foreground" },
-  { value: "interviewing", label: "Interviewing", color: "bg-foreground/15 text-foreground" },
-  { value: "offered", label: "Offered", color: "bg-foreground/20 text-foreground" },
-  { value: "rejected", label: "Rejected", color: "bg-foreground/5 text-muted-foreground" },
+  { value: "applied", label: "Applied", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300" },
+  { value: "interviewing", label: "Interviewing", color: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" },
+  { value: "offered", label: "Offered", color: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300" },
+  { value: "rejected", label: "Rejected", color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400" },
 ];
 
 export default function SavedJobsPage() {

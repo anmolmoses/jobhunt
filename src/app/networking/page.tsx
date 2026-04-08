@@ -80,11 +80,11 @@ interface CompanyCount {
 
 const STATUS_OPTIONS = [
   { value: "planned", label: "Planned", color: "bg-muted text-muted-foreground" },
-  { value: "sent", label: "Sent", color: "bg-foreground/10 text-foreground" },
-  { value: "replied", label: "Replied", color: "bg-foreground/15 text-foreground" },
-  { value: "no_reply", label: "No Reply", color: "bg-foreground/5 text-muted-foreground" },
-  { value: "meeting_scheduled", label: "Meeting Scheduled", color: "bg-foreground/20 text-foreground" },
-  { value: "declined", label: "Declined", color: "bg-foreground/5 text-muted-foreground" },
+  { value: "sent", label: "Sent", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300" },
+  { value: "replied", label: "Replied", color: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300" },
+  { value: "no_reply", label: "No Reply", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400" },
+  { value: "meeting_scheduled", label: "Meeting Scheduled", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" },
+  { value: "declined", label: "Declined", color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400" },
 ];
 
 const CHANNEL_ICONS: Record<string, typeof Link2> = {

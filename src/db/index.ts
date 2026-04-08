@@ -12,11 +12,28 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const sqlite = new Database(DB_PATH);
+function createDb() {
+  // Retry loop to handle SQLITE_BUSY during concurrent build workers
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const sqlite = new Database(DB_PATH);
+      sqlite.pragma("journal_mode = WAL");
+      sqlite.pragma("busy_timeout = 10000");
+      sqlite.pragma("foreign_keys = ON");
+      return drizzle(sqlite, { schema });
+    } catch (e: unknown) {
+      if (e && typeof e === "object" && "code" in e && e.code === "SQLITE_BUSY" && attempt < 4) {
+        // Wait and retry
+        const delay = 500 * (attempt + 1);
+        const start = Date.now();
+        while (Date.now() - start < delay) { /* busy wait */ }
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw new Error("Failed to open database after retries");
+}
 
-// Enable WAL mode for better concurrent read performance
-sqlite.pragma("journal_mode = WAL");
-sqlite.pragma("foreign_keys = ON");
-
-export const db = drizzle(sqlite, { schema });
+export const db = createDb();
 export { schema };

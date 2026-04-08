@@ -517,6 +517,45 @@ export const jobEvaluations = sqliteTable("job_evaluations", {
     .default(sql`(datetime('now'))`),
 });
 
+// Application assist — persisted cover letter, why this role, etc.
+export const applicationAssist = sqliteTable("application_assist", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  jobResultId: integer("job_result_id")
+    .references(() => jobResults.id, { onDelete: "cascade" }),
+  savedJobId: integer("saved_job_id")
+    .references(() => savedJobs.id, { onDelete: "cascade" }),
+  coverLetterDraft: text("cover_letter_draft"),
+  whyThisRole: text("why_this_role"),
+  whyThisCompany: text("why_this_company"),
+  biggestStrength: text("biggest_strength"),
+  challengeOvercome: text("challenge_overcome"),
+  whatYouBring: text("what_you_bring"),
+  salaryExpectation: text("salary_expectation"),
+  additionalNotes: text("additional_notes"),
+  rawData: text("raw_data"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// LinkedIn outreach — persisted messages, follow-up email, search queries
+export const linkedinOutreach = sqliteTable("linkedin_outreach", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  jobResultId: integer("job_result_id")
+    .references(() => jobResults.id, { onDelete: "cascade" }),
+  savedJobId: integer("saved_job_id")
+    .references(() => savedJobs.id, { onDelete: "cascade" }),
+  hiringManagerMessage: text("hiring_manager_message"),
+  recruiterMessage: text("recruiter_message"),
+  peerMessage: text("peer_message"),
+  followUpEmail: text("follow_up_email"),
+  searchQueries: text("search_queries"), // JSON array
+  rawData: text("raw_data"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 export const gamificationAchievements = sqliteTable("gamification_achievements", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   achievementId: text("achievement_id").notNull().unique(),

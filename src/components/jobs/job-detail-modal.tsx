@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import DOMPurify from "dompurify";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -213,6 +213,39 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
       .then((data) => setCompanyData(data))
       .catch(() => setCompanyData(null))
       .finally(() => setEnrichLoading(false));
+
+    // Load cached evaluation, app assist, and outreach
+    if (job.dbId) {
+      fetch(`/api/jobs/evaluate?jobResultId=${job.dbId}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.overallScore != null) {
+            setEvaluation(data);
+            setShowEval(true);
+          }
+        })
+        .catch(() => {});
+
+      fetch(`/api/application-assist?jobResultId=${job.dbId}&type=application`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.coverLetterDraft) {
+            setAppAssist(data);
+            setShowAppAssist(true);
+          }
+        })
+        .catch(() => {});
+
+      fetch(`/api/application-assist?jobResultId=${job.dbId}&type=outreach`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.hiringManagerMessage) {
+            setOutreach(data);
+            setShowOutreach(true);
+          }
+        })
+        .catch(() => {});
+    }
   }, [open, job?.company, job?.title]);
 
   const handleFindContacts = async () => {
@@ -289,7 +322,7 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
     finally { setEvalLoading(false); }
   };
 
-  const handleAppAssist = async () => {
+  const handleAppAssist = async (refresh = false) => {
     if (!job) return;
     setAppAssistLoading(true);
     setShowAppAssist(true);
@@ -299,10 +332,12 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "application",
+          jobResultId: job.dbId,
           jobTitle: job.title,
           company: job.company,
           location: job.location,
           description: scrapedDescription || job.description,
+          refresh,
         }),
       });
       if (res.ok) setAppAssist(await res.json());
@@ -310,7 +345,7 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
     finally { setAppAssistLoading(false); }
   };
 
-  const handleOutreach = async () => {
+  const handleOutreach = async (refresh = false) => {
     if (!job) return;
     setOutreachLoading(true);
     setShowOutreach(true);
@@ -320,10 +355,12 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "outreach",
+          jobResultId: job.dbId,
           jobTitle: job.title,
           company: job.company,
           location: job.location,
           description: scrapedDescription || job.description,
+          refresh,
         }),
       });
       if (res.ok) setOutreach(await res.json());
@@ -345,9 +382,9 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
     || companyData?.company?.headquarters || companyData?.company?.companyType;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onClose={() => onOpenChange(false)} className="max-w-3xl">
-        <DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent onClose={() => onOpenChange(false)}>
+        <SheetHeader>
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3">
               {job.companyLogo ? (
@@ -358,12 +395,12 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
                 </div>
               )}
               <div>
-                <DialogTitle className="text-xl">{job.title}</DialogTitle>
+                <SheetTitle className="text-xl">{job.title}</SheetTitle>
                 <p className="text-sm text-muted-foreground mt-1">{job.company}</p>
               </div>
             </div>
           </div>
-        </DialogHeader>
+        </SheetHeader>
 
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           {job.location && (
@@ -414,7 +451,7 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
                   Company Intelligence
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-3 lg:grid-cols-2">
                   {/* Salary Breakdown */}
                   {hasSalary && (
                     <div className="space-y-1.5">
@@ -869,11 +906,11 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
             {evalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart3 className="h-4 w-4" />}
             {evaluation ? "View Evaluation" : "Evaluate Job"}
           </Button>
-          <Button variant="outline" size="sm" onClick={handleAppAssist} disabled={appAssistLoading}>
+          <Button variant="outline" size="sm" onClick={() => handleAppAssist()} disabled={appAssistLoading}>
             {appAssistLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
             Application Assist
           </Button>
-          <Button variant="outline" size="sm" onClick={handleOutreach} disabled={outreachLoading}>
+          <Button variant="outline" size="sm" onClick={() => handleOutreach()} disabled={outreachLoading}>
             {outreachLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
             LinkedIn Outreach
           </Button>
@@ -948,7 +985,7 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
                   </div>
 
                   {/* Pros/Cons */}
-                  <div className="grid gap-3 md:grid-cols-2">
+                  <div className="grid gap-3 lg:grid-cols-2">
                     {(evaluation.pros as string[])?.length > 0 && (
                       <div>
                         <p className="text-xs font-medium text-muted-foreground mb-1">Pros</p>
@@ -1006,9 +1043,23 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
         {showAppAssist && (
           <Card>
             <CardContent className="pt-4 pb-4">
-              <div className="flex items-center gap-2 text-sm font-semibold mb-3">
-                <FileText className="h-4 w-4 text-primary" />
-                Application Assist
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <FileText className="h-4 w-4 text-primary" />
+                  Application Assist
+                </div>
+                {appAssist && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleAppAssist(true)}
+                    disabled={appAssistLoading}
+                    className="h-7 px-2 text-xs"
+                  >
+                    <RefreshCw className={`h-3 w-3 mr-1 ${appAssistLoading ? "animate-spin" : ""}`} />
+                    Refresh
+                  </Button>
+                )}
               </div>
 
               {appAssistLoading ? (
@@ -1055,9 +1106,23 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
         {showOutreach && (
           <Card>
             <CardContent className="pt-4 pb-4">
-              <div className="flex items-center gap-2 text-sm font-semibold mb-3">
-                <MessageSquare className="h-4 w-4 text-primary" />
-                LinkedIn Outreach Messages
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                  LinkedIn Outreach Messages
+                </div>
+                {outreach && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleOutreach(true)}
+                    disabled={outreachLoading}
+                    className="h-7 px-2 text-xs"
+                  >
+                    <RefreshCw className={`h-3 w-3 mr-1 ${outreachLoading ? "animate-spin" : ""}`} />
+                    Refresh
+                  </Button>
+                )}
               </div>
 
               {outreachLoading ? (
@@ -1130,7 +1195,7 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
             </a>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

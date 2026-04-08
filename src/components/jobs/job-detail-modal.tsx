@@ -10,7 +10,7 @@ import {
   ExternalLink, MapPin, Building2, Calendar, DollarSign, Plus, BookmarkCheck,
   Users, Briefcase, TrendingUp, Loader2, Globe, UserPlus, Send, Link2, Mail,
   BarChart3, FileText, MessageSquare, ChevronDown, ChevronUp, Copy, Check,
-  Target, Zap, Shield, Rocket, Star,
+  Target, Zap, Shield, Rocket, Star, RefreshCw,
 } from "lucide-react";
 import type { NormalizedJob } from "@/types/jobs";
 
@@ -340,7 +340,9 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
   if (!job) return null;
 
   const hasSalary = companyData?.salary?.median || companyData?.salary?.min;
-  const hasCompanyInfo = companyData?.company?.companySize || companyData?.company?.industry;
+  const hasCompanyInfo = companyData?.company?.companySize || companyData?.company?.industry
+    || companyData?.company?.description || companyData?.company?.funding
+    || companyData?.company?.headquarters || companyData?.company?.companyType;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -499,6 +501,9 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
                             )}
                           </div>
                         )}
+                        {companyData!.company.description && !companyData!.company.companySize && !companyData!.company.industry && (
+                          <p className="text-sm text-muted-foreground">{companyData!.company.description}</p>
+                        )}
                       </div>
                     </div>
                   )}
@@ -583,8 +588,38 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
                 </div>
               </div>
             ) : (
-              <div className="text-sm text-muted-foreground">
-                Company data unavailable
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>Company data unavailable</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setEnrichLoading(true);
+                    fetch("/api/company/enrich", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        companyName: job.company,
+                        jobTitle: job.title,
+                        location: job.location,
+                        jobDescription: job.description?.slice(0, 3000),
+                        bustCache: true,
+                      }),
+                    })
+                      .then((res) => (res.ok ? res.json() : null))
+                      .then((data) => setCompanyData(data))
+                      .catch(() => setCompanyData(null))
+                      .finally(() => setEnrichLoading(false));
+                  }}
+                  disabled={enrichLoading}
+                >
+                  {enrichLoading ? (
+                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                  ) : (
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                  )}
+                  Retry
+                </Button>
               </div>
             )}
           </CardContent>

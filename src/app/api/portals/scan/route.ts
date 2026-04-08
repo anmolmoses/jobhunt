@@ -3,6 +3,47 @@ import { db, schema } from "@/db";
 import { eq, desc } from "drizzle-orm";
 import { scrapeUrl } from "@/lib/firecrawl/client";
 
+interface UserPreferences {
+  desiredRoles: string[];
+  excludeKeywords: string[];
+  experienceLevel: string;
+  locationPreference: string[];
+  preferredLocations: string[];
+}
+
+function loadPreferences(): UserPreferences | null {
+  const prefs = db
+    .select()
+    .from(schema.jobPreferences)
+    .orderBy(desc(schema.jobPreferences.updatedAt))
+    .limit(1)
+    .get();
+
+  if (!prefs) return null;
+
+  const safeParse = (s: string, fallback: unknown = []) => {
+    try { return JSON.parse(s); } catch { return fallback; }
+  };
+
+  return {
+    desiredRoles: safeParse(prefs.desiredRoles, []),
+    excludeKeywords: safeParse(prefs.excludeKeywords, []),
+    experienceLevel: prefs.experienceLevel,
+    locationPreference: (() => {
+      const v = safeParse(prefs.locationPreference, null);
+      return Array.isArray(v) ? v : [prefs.locationPreference];
+    })(),
+    preferredLocations: safeParse(prefs.preferredLocations, []),
+  };
+}
+
+// Seniority keywords to filter by experience level
+const SENIORITY_MAP: Record<string, number> = {
+  entry: 1, mid: 2, senior: 3, lead: 4, executive: 5,
+};
+const JUNIOR_PATTERNS = /\b(intern|internship|junior|jr\.?|entry[\s-]level|graduate|trainee)\b/i;
+const SENIOR_PATTERNS = /\b(senior|sr\.?|staff|principal|lead|director|vp|head of|chief)\b/i;
+
 interface GreenhouseJob {
   id: number;
   title: string;
@@ -133,7 +174,10 @@ async function scanFirecrawl(portal: typeof schema.companyPortals.$inferSelect):
   return jobs;
 }
 
-async function scanPortal(portal: typeof schema.companyPortals.$inferSelect): Promise<{ count: number; error?: string }> {
+async function scanPortal(
+  portal: typeof schema.companyPortals.$inferSelect,
+  prefs: UserPreferences | null = null,
+): Promise<{ count: number; error?: string }> {
   try {
     let results: ScanResult[];
 
@@ -151,7 +195,7 @@ async function scanPortal(portal: typeof schema.companyPortals.$inferSelect): Pr
         return { count: 0, error: `Unknown scan method: ${portal.scanMethod}` };
     }
 
-    // Apply title filters if configured
+    // Apply per-portal title filters if configured
     const titleFilters: string[] = JSON.parse(portal.titleFilters || "[]");
     const titleExclusions: string[] = JSON.parse(portal.titleExclusions || "[]");
 
@@ -165,6 +209,49 @@ async function scanPortal(portal: typeof schema.companyPortals.$inferSelect): Pr
       results = results.filter((job) =>
         !titleExclusions.some((ex) => job.title.toLowerCase().includes(ex.toLowerCase()))
       );
+    }
+
+    // Apply global job preferences
+    if (prefs) {
+      // Filter by exclude keywords
+      if (prefs.excludeKeywords.length > 0) {
+        results = results.filter((job) => {
+          const text = (job.title + " " + (job.department || "")).toLowerCase();
+          return !prefs.excludeKeywords.some((kw) => text.includes(kw.toLowerCase()));
+        });
+      }
+
+      // Filter by desired roles (if set, job title must match at least one)
+      if (prefs.desiredRoles.length > 0) {
+        results = results.filter((job) => {
+          const title = job.title.toLowerCase();
+          return prefs.desiredRoles.some((role) =>
+            title.includes(role.toLowerCase())
+          );
+        });
+      }
+
+      // Filter by experience level (drop mismatched seniority)
+      const userLevel = SENIORITY_MAP[prefs.experienceLevel] || 0;
+      if (userLevel >= 3) {
+        // Senior+: drop intern/junior/entry roles
+        results = results.filter((job) => !JUNIOR_PATTERNS.test(job.title));
+      } else if (userLevel <= 1) {
+        // Entry: drop senior/lead/director roles
+        results = results.filter((job) => !SENIOR_PATTERNS.test(job.title));
+      }
+
+      // Filter by location preference
+      const wantsRemote = prefs.locationPreference.includes("remote");
+      const hasLocationPrefs = prefs.preferredLocations.length > 0;
+      if (hasLocationPrefs && !wantsRemote) {
+        results = results.filter((job) => {
+          if (job.isRemote) return true; // Remote jobs always pass
+          if (!job.location) return true; // Unknown location, keep
+          const loc = job.location.toLowerCase();
+          return prefs.preferredLocations.some((pl) => loc.includes(pl.toLowerCase()));
+        });
+      }
     }
 
     // Upsert results — use dedupeKey to avoid duplicates
@@ -216,6 +303,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const { id } = body;
 
+    // Load user preferences once for all scans
+    const prefs = loadPreferences();
+
     if (id) {
       // Scan a specific portal
       const portal = db
@@ -228,7 +318,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Portal not found" }, { status: 404 });
       }
 
-      const result = await scanPortal(portal);
+      const result = await scanPortal(portal, prefs);
       return NextResponse.json({ portal: portal.companyName, ...result });
     }
 
@@ -241,7 +331,7 @@ export async function POST(request: NextRequest) {
 
     const results = [];
     for (const portal of portals) {
-      const result = await scanPortal(portal);
+      const result = await scanPortal(portal, prefs);
       results.push({ portal: portal.companyName, ...result });
     }
 
@@ -294,6 +384,39 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Get scan results error:", error);
     return NextResponse.json({ error: "Failed to get scan results" }, { status: 500 });
+  }
+}
+
+// DELETE: Clear scan results (all or per-portal)
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const portalId = searchParams.get("portalId");
+
+    if (portalId) {
+      db.delete(schema.portalScanResults)
+        .where(eq(schema.portalScanResults.portalId, Number(portalId)))
+        .run();
+
+      // Reset portal metadata
+      db.update(schema.companyPortals)
+        .set({ lastScanJobCount: 0 })
+        .where(eq(schema.companyPortals.id, Number(portalId)))
+        .run();
+    } else {
+      // Clear all scan results
+      db.delete(schema.portalScanResults).run();
+
+      // Reset all portal metadata
+      db.update(schema.companyPortals)
+        .set({ lastScanJobCount: 0 })
+        .run();
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Clear scan results error:", error);
+    return NextResponse.json({ error: "Failed to clear results" }, { status: 500 });
   }
 }
 

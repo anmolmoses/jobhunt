@@ -249,6 +249,17 @@ export default function PortalsPage() {
     }
   };
 
+  const clearAllResults = async () => {
+    try {
+      await fetch("/api/portals/scan", { method: "DELETE" });
+      setResults([]);
+      loadPortals();
+      toast("Cleared all scan results", "success");
+    } catch {
+      toast("Failed to clear results", "error");
+    }
+  };
+
   const categories = [...new Set(portals.map((p) => p.category).filter(Boolean))] as string[];
   const filteredPortals =
     filterCategory === "all"
@@ -454,9 +465,20 @@ export default function PortalsPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Scan Results</h2>
-            <span className="text-sm text-muted-foreground">
-              {results.length} jobs found
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">
+                {results.length} jobs found
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearAllResults}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                Clear All
+              </Button>
+            </div>
           </div>
           <div className="space-y-2">
             {results.map((result) => (

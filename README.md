@@ -1,6 +1,6 @@
 # JobHunt
 
-AI-powered, self-hosted job hunting platform. Upload your resume, let AI find and rank jobs across 9 providers, track applications with a Kanban board, discover networking contacts, and build tailored resumes — all from one place.
+AI-powered, self-hosted job hunting platform. Upload your resume, let AI find and rank jobs across 10+ providers, track applications with a Kanban board, discover networking contacts, and build tailored resumes — all from one place.
 
 ## Screenshots
 
@@ -44,7 +44,7 @@ Configure AI providers, job search APIs, networking tools. Delete data granularl
 
 ### AI-First Job Search
 - **One-click "Find Jobs For Me"** — AI reads your resume, extracts preferences, generates optimized search queries, and searches across all providers
-- **9 job providers**: LinkedIn, Indeed, JSearch (Google Jobs), Adzuna, Remotive, RemoteOK, Jobicy, HackerNews Who's Hiring, Firecrawl (web-wide)
+- **10+ job providers**: LinkedIn (Crawlee), Indeed, JSearch (Google Jobs), Adzuna, Remotive, RemoteOK, Jobicy, HackerNews Who's Hiring, Greenhouse ATS, Firecrawl (web-wide)
 - **Smart filtering** — excludes irrelevant jobs based on your experience level (no intern roles for senior engineers)
 - **ATS keyword scoring** — each job shows how well your resume matches the job description
 - **Date filtering enforced** — all providers honor your date range, with a safety-net filter in the orchestrator
@@ -187,15 +187,74 @@ Add your API keys in `.env.local` (local dev) or `.env` (Docker), or configure t
 
 **LinkedIn, Indeed, Remotive, RemoteOK, Jobicy, HackerNews** work without API keys.
 
-### Optional: Firecrawl (Self-Hosted Web Scraping)
+### Firecrawl (Self-Hosted Web Scraping)
 
-Firecrawl enhances company intelligence, job descriptions, map accuracy, and adds a 9th job search provider. Self-hosted via Docker:
+Firecrawl powers company intelligence (funding, salary, Glassdoor ratings), full job description scraping, Firecrawl-based portal scanning, and a web-wide job search provider. Strongly recommended.
+
+#### Setting Up Firecrawl
 
 ```bash
-docker run -p 3002:3002 mendableai/firecrawl
+# Clone Firecrawl into the gitignored docker/ directory
+git clone https://github.com/mendableai/firecrawl.git docker/firecrawl
+cd docker/firecrawl
+
+# Copy the example env (defaults work for local use)
+cp apps/api/.env.example .env
+
+# Start Firecrawl (API on port 3002, plus Redis, PostgreSQL, Playwright, RabbitMQ)
+docker compose up -d
+cd ../..
 ```
 
-Then set `FIRECRAWL_API_URL=http://localhost:3002` in your env or in Settings.
+#### Connecting JobHunt to Firecrawl
+
+**If both run in Docker** (the default), they must share a Docker network. The `docker-compose.yml` is already configured to join Firecrawl's network:
+
+```yaml
+services:
+  jobhunt:
+    networks:
+      - default
+      - firecrawl_backend
+
+networks:
+  firecrawl_backend:
+    external: true
+```
+
+> **Start Firecrawl before JobHunt** so the `firecrawl_backend` network exists.
+
+Then configure the URL in **Settings** → **Firecrawl** using the Docker service hostname:
+
+| Setup | Firecrawl API URL |
+|-------|-------------------|
+| Both in Docker | `http://firecrawl-api-1:3002` |
+| JobHunt local (`npm run dev`), Firecrawl in Docker | `http://localhost:3002` |
+| Firecrawl Cloud | `https://api.firecrawl.dev` (+ your API key) |
+
+> **`localhost` does not work between Docker containers.** Use the Firecrawl container name as the hostname. Find it with `docker ps` — typically `firecrawl-api-1`.
+
+#### Verifying Connectivity
+
+From inside the JobHunt container:
+
+```bash
+docker exec jobhunt sh -c "node -e \"fetch('http://firecrawl-api-1:3002/v1/search', \
+  { method: 'POST', headers: {'Content-Type':'application/json'}, \
+    body: JSON.stringify({query:'test',limit:1}) }) \
+  .then(r=>r.json()).then(d=>console.log('OK:', d.success)) \
+  .catch(e=>console.error('FAIL:', e.message))\""
+```
+
+#### What Firecrawl Enables
+
+| Feature | Without Firecrawl | With Firecrawl |
+|---------|-------------------|----------------|
+| Company Intelligence | Salary data only (from JSearch) | Full profile: funding, valuation, Glassdoor rating, employee count, HQ, growth signals |
+| Job Descriptions | Whatever the provider returns (often truncated) | Full descriptions scraped from apply URLs |
+| Company Portals | Greenhouse + Lever only | Any careers page (scrapes as markdown) |
+| Web Job Search | Not available | Searches the open web for job listings |
+| Map Geocoding | City-level (Nominatim) | Office-level (scrapes company address pages) |
 
 ## Tech Stack
 
@@ -210,7 +269,7 @@ Then set `FIRECRAWL_API_URL=http://localhost:3002` in your env or in Settings.
 | Maps | Leaflet + react-leaflet + OpenStreetMap |
 | Graphs | react-force-graph-2d |
 | PDF | Puppeteer |
-| Web Scraping | Firecrawl (optional) |
+| Web Scraping | Crawlee (LinkedIn), Firecrawl (company data, portals) |
 | Scheduling | node-cron |
 
 ## Architecture
@@ -298,7 +357,7 @@ SQLite with 20 tables, WAL mode for concurrent reads, foreign keys enforced with
 
 | Provider | Source | API Key? | Date Filtering |
 |----------|--------|----------|----------------|
-| LinkedIn | linkedin-jobs-api (scraper) | No | Server-side |
+| LinkedIn | Crawlee CheerioCrawler (public guest API) | No | Server-side (f_TPR) |
 | Indeed | ts-jobspy (scraper) | No | Server-side (hoursOld) |
 | JSearch | RapidAPI (Google Jobs) | Yes | Server-side |
 | Adzuna | Official API | Yes | Server-side (max_days_old) |
@@ -306,7 +365,8 @@ SQLite with 20 tables, WAL mode for concurrent reads, foreign keys enforced with
 | RemoteOK | Official API | No | Client-side |
 | Jobicy | Official API | No | Client-side |
 | HackerNews | Algolia API | No | Thread recency check |
-| Firecrawl | Web search + scraping | Yes | N/A |
+| Greenhouse | Public Boards API | No | Server-side |
+| Firecrawl | Web search + scraping | Yes (self-hosted or cloud) | N/A |
 
 All providers are backed by an orchestrator-level safety-net date filter.
 

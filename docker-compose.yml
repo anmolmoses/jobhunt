@@ -12,7 +12,14 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+    networks:
+      - default
+      - firecrawl_backend
 
 volumes:
   jobhunt-data:
   jobhunt-uploads:
+
+networks:
+  firecrawl_backend:
+    external: true

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
 import { eq, desc } from "drizzle-orm";
-import { scrapeUrl } from "@/lib/firecrawl/client";
+import { scrapeUrl, getFirecrawlClient } from "@/lib/firecrawl/client";
 
 interface UserPreferences {
   desiredRoles: string[];
@@ -119,59 +119,128 @@ async function scanLever(portal: typeof schema.companyPortals.$inferSelect): Pro
   }));
 }
 
-async function scanFirecrawl(portal: typeof schema.companyPortals.$inferSelect): Promise<ScanResult[]> {
-  const result = await scrapeUrl(portal.careersUrl);
-  if (!result.success || !result.markdown) return [];
+async function scanFirecrawl(
+  portal: typeof schema.companyPortals.$inferSelect,
+  prefs: UserPreferences | null = null,
+): Promise<ScanResult[]> {
+  const client = await getFirecrawlClient();
+  if (!client) return [];
 
-  // Parse job listings from markdown content
-  // Look for patterns like "## Job Title" or "- Job Title" with links
   const jobs: ScanResult[] = [];
-  const lines = result.markdown.split("\n");
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+  // Strategy 1: Use Firecrawl search to find jobs at this company
+  // Build search queries from user preferences or generic terms
+  const domain = extractDomain(portal.careersUrl);
+  const searchQueries: string[] = [];
 
-    // Match markdown links that look like job titles: [Job Title](url)
-    const linkMatch = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
-    if (linkMatch) {
-      const title = linkMatch[1].trim();
-      const url = linkMatch[2].trim();
+  if (prefs?.desiredRoles?.length) {
+    // Search for each desired role at this company
+    for (const role of prefs.desiredRoles.slice(0, 3)) {
+      searchQueries.push(
+        domain
+          ? `site:${domain} ${role} jobs`
+          : `${portal.companyName} ${role} careers jobs`
+      );
+    }
+  } else {
+    // Generic search
+    searchQueries.push(
+      domain
+        ? `site:${domain} jobs careers`
+        : `${portal.companyName} jobs careers open positions`
+    );
+  }
 
-      // Filter out navigation/generic links
-      if (
-        title.length < 5 ||
-        title.length > 120 ||
-        /^(home|about|contact|blog|sign|log|apply|menu|skip|back|next|prev)/i.test(title)
-      ) {
-        continue;
+  const seen = new Set<string>();
+  for (const query of searchQueries) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const res = await (client as any).search(query, { limit: 10 });
+      const results = (res?.data || res?.web || []) as { url?: string; title?: string; description?: string }[];
+
+      for (const r of results) {
+        if (!r.url || !r.title) continue;
+        // Filter out non-job pages (homepages, blog, about)
+        if (
+          r.title.length < 5 ||
+          /search for|find your|careers at|join us|about us/i.test(r.title) ||
+          seen.has(r.url)
+        ) continue;
+
+        seen.add(r.url);
+        // Extract job title — remove company suffix like " — Google Careers"
+        const title = r.title
+          .replace(/\s*[—–|]\s*(careers|jobs).*$/i, "")
+          .replace(/\s*[—–|]\s*\S+\s*$/i, "")
+          .trim();
+
+        if (title.length < 5 || title.length > 120) continue;
+
+        jobs.push({
+          externalId: r.url,
+          title,
+          department: null,
+          location: null,
+          applyUrl: r.url,
+          description: r.description?.slice(0, 2000) || null,
+          isRemote: /remote/i.test(title) || /remote/i.test(r.description || ""),
+          postedAt: null,
+        });
       }
-
-      // Look for location info on nearby lines
-      let location: string | null = null;
-      for (let j = Math.max(0, i - 1); j <= Math.min(lines.length - 1, i + 2); j++) {
-        if (j === i) continue;
-        const nearby = lines[j].trim();
-        const locMatch = nearby.match(/(?:location|office|city)[\s:]+([^\n|]+)/i);
-        if (locMatch) {
-          location = locMatch[1].trim();
-          break;
-        }
-      }
-
-      jobs.push({
-        externalId: url,
-        title,
-        department: null,
-        location,
-        applyUrl: url.startsWith("http") ? url : `${portal.careersUrl.replace(/\/$/, "")}${url.startsWith("/") ? "" : "/"}${url}`,
-        description: null,
-        isRemote: /remote/i.test(title) || /remote/i.test(location || ""),
-        postedAt: null,
-      });
+    } catch (e) {
+      console.warn(`Firecrawl search failed for "${query}":`, e);
     }
   }
 
+  if (jobs.length > 0) return jobs;
+
+  // Strategy 2: Fallback — scrape the careers page for markdown links
+  const result = await scrapeUrl(portal.careersUrl);
+  if (!result.success || !result.markdown) return [];
+
+  const lines = result.markdown.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const linkMatch = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
+    if (!linkMatch) continue;
+
+    const linkTitle = linkMatch[1].trim();
+    const url = linkMatch[2].trim();
+
+    if (
+      linkTitle.length < 5 || linkTitle.length > 120 ||
+      /^(home|about|contact|blog|sign|log|apply|menu|skip|back|next|prev)/i.test(linkTitle)
+    ) continue;
+
+    let location: string | null = null;
+    for (let j = Math.max(0, i - 1); j <= Math.min(lines.length - 1, i + 2); j++) {
+      if (j === i) continue;
+      const nearby = lines[j].trim();
+      const locMatch = nearby.match(/(?:location|office|city)[\s:]+([^\n|]+)/i);
+      if (locMatch) { location = locMatch[1].trim(); break; }
+    }
+
+    jobs.push({
+      externalId: url,
+      title: linkTitle,
+      department: null,
+      location,
+      applyUrl: url.startsWith("http") ? url : `${portal.careersUrl.replace(/\/$/, "")}${url.startsWith("/") ? "" : "/"}${url}`,
+      description: null,
+      isRemote: /remote/i.test(linkTitle) || /remote/i.test(location || ""),
+      postedAt: null,
+    });
+  }
+
   return jobs;
+}
+
+function extractDomain(url: string): string | null {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
 }
 
 async function scanPortal(
@@ -189,7 +258,7 @@ async function scanPortal(
         results = await scanLever(portal);
         break;
       case "firecrawl":
-        results = await scanFirecrawl(portal);
+        results = await scanFirecrawl(portal, prefs);
         break;
       default:
         return { count: 0, error: `Unknown scan method: ${portal.scanMethod}` };

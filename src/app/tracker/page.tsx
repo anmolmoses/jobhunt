@@ -120,6 +120,13 @@ export default function TrackerPage() {
   const [newInterview, setNewInterview] = useState({ type: "phone_screen", scheduledAt: "", interviewerName: "", meetingLink: "", notes: "" });
   const [selectedJob, setSelectedJob] = useState<(NormalizedJob & { dbId?: number }) | null>(null);
   const [selectedSavedId, setSelectedSavedId] = useState<number | null>(null);
+  const [showAddJob, setShowAddJob] = useState(false);
+  const [addJobForm, setAddJobForm] = useState({
+    title: "", company: "", location: "", salary: "",
+    applyUrl: "", jobType: "full_time", isRemote: false,
+    description: "", notes: "", status: "saved",
+  });
+  const [addJobLoading, setAddJobLoading] = useState(false);
 
   const openJobDetail = (item: SavedJob) => {
     setSelectedJob({
@@ -216,6 +223,38 @@ export default function TrackerPage() {
     }
   };
 
+  const addCustomJob = async () => {
+    if (!addJobForm.title || !addJobForm.company) {
+      toast("Title and company are required", "error");
+      return;
+    }
+    setAddJobLoading(true);
+    try {
+      const res = await fetch("/api/jobs/custom", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(addJobForm),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        toast(err.error || "Failed to add job", "error");
+        return;
+      }
+      toast(`Added ${addJobForm.title} at ${addJobForm.company}`, "success");
+      setShowAddJob(false);
+      setAddJobForm({
+        title: "", company: "", location: "", salary: "",
+        applyUrl: "", jobType: "full_time", isRemote: false,
+        description: "", notes: "", status: "saved",
+      });
+      loadData();
+    } catch {
+      toast("Failed to add job", "error");
+    } finally {
+      setAddJobLoading(false);
+    }
+  };
+
   if (loading || !data) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -228,9 +267,15 @@ export default function TrackerPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Application Tracker</h1>
-        <p className="text-muted-foreground mt-1">Your complete job application pipeline</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Application Tracker</h1>
+          <p className="text-muted-foreground mt-1">Your complete job application pipeline</p>
+        </div>
+        <Button onClick={() => setShowAddJob(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Job
+        </Button>
       </div>
 
       {/* Stats Row */}
@@ -599,6 +644,121 @@ export default function TrackerPage() {
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setInterviewModal(null)}>Cancel</Button>
               <Button onClick={scheduleInterview}>Schedule Interview</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Custom Job Dialog */}
+      <Dialog open={showAddJob} onOpenChange={setShowAddJob}>
+        <DialogContent onClose={() => setShowAddJob(false)}>
+          <DialogHeader>
+            <DialogTitle>Add Job Manually</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label>Job Title *</Label>
+                <Input
+                  value={addJobForm.title}
+                  onChange={(e) => setAddJobForm((f) => ({ ...f, title: e.target.value }))}
+                  placeholder="e.g. Senior Software Engineer"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>Company *</Label>
+                <Input
+                  value={addJobForm.company}
+                  onChange={(e) => setAddJobForm((f) => ({ ...f, company: e.target.value }))}
+                  placeholder="e.g. Google"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label>Location</Label>
+                <Input
+                  value={addJobForm.location}
+                  onChange={(e) => setAddJobForm((f) => ({ ...f, location: e.target.value }))}
+                  placeholder="e.g. San Francisco, CA"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>Salary</Label>
+                <Input
+                  value={addJobForm.salary}
+                  onChange={(e) => setAddJobForm((f) => ({ ...f, salary: e.target.value }))}
+                  placeholder="e.g. $150,000 - $200,000"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label>Job Type</Label>
+                <Select
+                  value={addJobForm.jobType}
+                  onChange={(e) => setAddJobForm((f) => ({ ...f, jobType: e.target.value }))}
+                  className="mt-1"
+                >
+                  <option value="full_time">Full-time</option>
+                  <option value="contract">Contract</option>
+                  <option value="part_time">Part-time</option>
+                </Select>
+              </div>
+              <div>
+                <Label>Initial Status</Label>
+                <Select
+                  value={addJobForm.status}
+                  onChange={(e) => setAddJobForm((f) => ({ ...f, status: e.target.value }))}
+                  className="mt-1"
+                >
+                  <option value="saved">Saved</option>
+                  <option value="applied">Applied</option>
+                  <option value="interviewing">Interviewing</option>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Job Posting URL</Label>
+              <Input
+                value={addJobForm.applyUrl}
+                onChange={(e) => setAddJobForm((f) => ({ ...f, applyUrl: e.target.value }))}
+                placeholder="https://linkedin.com/jobs/view/..."
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Notes</Label>
+              <Textarea
+                value={addJobForm.notes}
+                onChange={(e) => setAddJobForm((f) => ({ ...f, notes: e.target.value }))}
+                placeholder="Where you found it, referral contact, etc."
+                rows={2}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="isRemote"
+                checked={addJobForm.isRemote}
+                onChange={(e) => setAddJobForm((f) => ({ ...f, isRemote: e.target.checked }))}
+                className="rounded border-input"
+              />
+              <Label htmlFor="isRemote">Remote position</Label>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowAddJob(false)}>
+                Cancel
+              </Button>
+              <Button onClick={addCustomJob} disabled={addJobLoading}>
+                {addJobLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Add to Tracker
+              </Button>
             </div>
           </div>
         </DialogContent>

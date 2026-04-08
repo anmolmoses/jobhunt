@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   ExternalLink, MapPin, Building2, Calendar, DollarSign, Plus, BookmarkCheck,
   Users, Briefcase, TrendingUp, Loader2, Globe, UserPlus, Send, Link2, Mail,
-  BarChart3, FileText, MessageSquare, ChevronDown, ChevronUp, Copy, Check,
+  BarChart3, FileText, MessageSquare, Copy, Check,
   Target, Zap, Shield, Rocket, Star, RefreshCw,
 } from "lucide-react";
 import type { NormalizedJob } from "@/types/jobs";
@@ -133,19 +133,17 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
   // Evaluation
   const [evaluation, setEvaluation] = useState<Record<string, unknown> | null>(null);
   const [evalLoading, setEvalLoading] = useState(false);
-  const [showEval, setShowEval] = useState(false);
 
   // Application assist
   const [appAssist, setAppAssist] = useState<Record<string, unknown> | null>(null);
   const [appAssistLoading, setAppAssistLoading] = useState(false);
-  const [showAppAssist, setShowAppAssist] = useState(false);
 
   // Outreach
   const [outreach, setOutreach] = useState<Record<string, unknown> | null>(null);
   const [outreachLoading, setOutreachLoading] = useState(false);
-  const [showOutreach, setShowOutreach] = useState(false);
 
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"evaluation" | "appAssist" | "outreach">("evaluation");
 
   // Fetch company enrichment + LinkedIn matches when modal opens
   useEffect(() => {
@@ -157,11 +155,9 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
       setLinkedinMatches([]);
       setScrapedDescription(null);
       setEvaluation(null);
-      setShowEval(false);
       setAppAssist(null);
-      setShowAppAssist(false);
       setOutreach(null);
-      setShowOutreach(false);
+      setActiveTab("evaluation");
       return;
     }
 
@@ -219,30 +215,21 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
       fetch(`/api/jobs/evaluate?jobResultId=${job.dbId}`)
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (data?.overallScore != null) {
-            setEvaluation(data);
-            setShowEval(true);
-          }
+          if (data?.overallScore != null) setEvaluation(data);
         })
         .catch(() => {});
 
       fetch(`/api/application-assist?jobResultId=${job.dbId}&type=application`)
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (data?.coverLetterDraft) {
-            setAppAssist(data);
-            setShowAppAssist(true);
-          }
+          if (data?.coverLetterDraft) setAppAssist(data);
         })
         .catch(() => {});
 
       fetch(`/api/application-assist?jobResultId=${job.dbId}&type=outreach`)
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (data?.hiringManagerMessage) {
-            setOutreach(data);
-            setShowOutreach(true);
-          }
+          if (data?.hiringManagerMessage) setOutreach(data);
         })
         .catch(() => {});
     }
@@ -298,7 +285,7 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
   const handleEvaluate = async () => {
     if (!job) return;
     setEvalLoading(true);
-    setShowEval(true);
+    setActiveTab("evaluation");
     try {
       // Check for existing evaluation first
       const checkRes = await fetch(`/api/jobs/evaluate?jobResultId=${job.dbId}`);
@@ -325,7 +312,7 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
   const handleAppAssist = async (refresh = false) => {
     if (!job) return;
     setAppAssistLoading(true);
-    setShowAppAssist(true);
+    setActiveTab("appAssist");
     try {
       const res = await fetch("/api/application-assist", {
         method: "POST",
@@ -348,7 +335,7 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
   const handleOutreach = async (refresh = false) => {
     if (!job) return;
     setOutreachLoading(true);
-    setShowOutreach(true);
+    setActiveTab("outreach");
     try {
       const res = await fetch("/api/application-assist", {
         method: "POST",
@@ -401,6 +388,27 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
             </div>
           </div>
         </SheetHeader>
+
+        <div className="mt-4 space-y-5">
+
+        <div className="flex gap-2">
+          <Button
+            variant={isSaved ? "secondary" : "outline"}
+            className={isSaved ? "text-primary" : ""}
+            onClick={() => (isSaved ? onUnsave?.() : onSave?.())}
+          >
+            {isSaved ? <BookmarkCheck className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {isSaved ? "Tracking" : "Track Job"}
+          </Button>
+          {job.applyUrl && (
+            <a href={job.applyUrl} target="_blank" rel="noopener noreferrer">
+              <Button>
+                <ExternalLink className="h-4 w-4" />
+                Apply
+              </Button>
+            </a>
+          )}
+        </div>
 
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           {job.location && (
@@ -900,45 +908,43 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
           </div>
         )}
 
-        {/* Action Buttons Row */}
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={handleEvaluate} disabled={evalLoading}>
-            {evalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart3 className="h-4 w-4" />}
-            {evaluation ? "View Evaluation" : "Evaluate Job"}
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleAppAssist()} disabled={appAssistLoading}>
-            {appAssistLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-            Application Assist
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleOutreach()} disabled={outreachLoading}>
-            {outreachLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
-            LinkedIn Outreach
-          </Button>
+        {/* AI Tools Tabs */}
+        <div className="flex border-b">
+          {([
+            { id: "evaluation" as const, label: "Evaluation", icon: BarChart3, hasData: !!evaluation },
+            { id: "appAssist" as const, label: "Application Assist", icon: FileText, hasData: !!appAssist },
+            { id: "outreach" as const, label: "LinkedIn Outreach", icon: MessageSquare, hasData: !!outreach },
+          ]).map(({ id, label, icon: Icon, hasData }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === id
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+              {hasData && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+            </button>
+          ))}
         </div>
 
-        {/* 10-Dimension Evaluation */}
-        {showEval && (
+        {/* Tab Content */}
+        {activeTab === "evaluation" && (
           <Card>
             <CardContent className="pt-4 pb-4">
-              <button
-                className="flex items-center justify-between w-full text-sm font-semibold"
-                onClick={() => setShowEval(!showEval)}
-              >
-                <span className="flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 text-primary" />
-                  Job Evaluation
-                  {evaluation && (
-                    <Badge variant={
-                      (evaluation.recommendation as string) === "strong_apply" ? "success" :
-                      (evaluation.recommendation as string) === "apply" ? "secondary" :
-                      (evaluation.recommendation as string) === "maybe" ? "outline" : "destructive"
-                    }>
-                      {(evaluation.recommendation as string)?.replace("_", " ")}
-                    </Badge>
-                  )}
-                </span>
-                {showEval ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
+              {!evaluation && !evalLoading && (
+                <div className="flex flex-col items-center gap-3 py-6 text-center">
+                  <BarChart3 className="h-8 w-8 text-muted-foreground/50" />
+                  <p className="text-sm text-muted-foreground">Evaluate this job against your resume and preferences</p>
+                  <Button size="sm" onClick={handleEvaluate}>
+                    <BarChart3 className="h-4 w-4" />
+                    Evaluate Job
+                  </Button>
+                </div>
+              )}
 
               {evalLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground mt-3">
@@ -1039,10 +1045,20 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
           </Card>
         )}
 
-        {/* Application Assist */}
-        {showAppAssist && (
+        {activeTab === "appAssist" && (
           <Card>
             <CardContent className="pt-4 pb-4">
+              {!appAssist && !appAssistLoading && (
+                <div className="flex flex-col items-center gap-3 py-6 text-center">
+                  <FileText className="h-8 w-8 text-muted-foreground/50" />
+                  <p className="text-sm text-muted-foreground">Generate a tailored cover letter, interview answers, and more</p>
+                  <Button size="sm" onClick={() => handleAppAssist()}>
+                    <FileText className="h-4 w-4" />
+                    Generate
+                  </Button>
+                </div>
+              )}
+              {(appAssist || appAssistLoading) && (
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <FileText className="h-4 w-4 text-primary" />
@@ -1061,6 +1077,7 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
                   </Button>
                 )}
               </div>
+              )}
 
               {appAssistLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -1102,10 +1119,20 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
           </Card>
         )}
 
-        {/* LinkedIn Outreach */}
-        {showOutreach && (
+        {activeTab === "outreach" && (
           <Card>
             <CardContent className="pt-4 pb-4">
+              {!outreach && !outreachLoading && (
+                <div className="flex flex-col items-center gap-3 py-6 text-center">
+                  <MessageSquare className="h-8 w-8 text-muted-foreground/50" />
+                  <p className="text-sm text-muted-foreground">Generate LinkedIn outreach messages for hiring managers, recruiters, and peers</p>
+                  <Button size="sm" onClick={() => handleOutreach()}>
+                    <MessageSquare className="h-4 w-4" />
+                    Generate
+                  </Button>
+                </div>
+              )}
+              {(outreach || outreachLoading) && (
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <MessageSquare className="h-4 w-4 text-primary" />
@@ -1124,6 +1151,7 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
                   </Button>
                 )}
               </div>
+              )}
 
               {outreachLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -1177,23 +1205,6 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
           </Card>
         )}
 
-        <div className="flex gap-2 justify-end">
-          <Button
-            variant={isSaved ? "secondary" : "outline"}
-            className={isSaved ? "text-primary" : ""}
-            onClick={() => (isSaved ? onUnsave?.() : onSave?.())}
-          >
-            {isSaved ? <BookmarkCheck className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {isSaved ? "Tracking" : "Track Job"}
-          </Button>
-          {job.applyUrl && (
-            <a href={job.applyUrl} target="_blank" rel="noopener noreferrer">
-              <Button>
-                <ExternalLink className="h-4 w-4" />
-                Apply
-              </Button>
-            </a>
-          )}
         </div>
       </SheetContent>
     </Sheet>

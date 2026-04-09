@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import { Save, TestTube, Loader2, Trash2, AlertTriangle, Clock, Play, CheckCircle, XCircle, Timer, MapPin, RefreshCw } from "lucide-react";
 import { GamificationSettings } from "@/components/settings/gamification-settings";
 import { SearchConfigSettings } from "@/components/settings/search-config";
+import { ExportSettings } from "@/components/settings/export-settings";
 
 const CLAUDE_MODELS = [
   { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 (latest)" },
@@ -672,6 +673,8 @@ export default function SettingsPage() {
       </div>
 
       <SearchConfigSettings />
+
+      <ExportSettings />
 
       <GamificationSettings />
 

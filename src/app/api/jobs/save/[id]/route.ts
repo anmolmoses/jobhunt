@@ -3,6 +3,7 @@ import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { parseIdParam } from "@/lib/utils";
 import { recordAction } from "@/lib/gamification";
+import { triggerGoogleSheetsSync } from "@/lib/sheets/sync";
 
 export async function PATCH(
   request: NextRequest,
@@ -81,6 +82,9 @@ export async function PATCH(
     }
 
     const updated = db.select().from(schema.savedJobs).where(eq(schema.savedJobs.id, savedJobId)).get();
+
+    try { triggerGoogleSheetsSync(); } catch (e) { console.error("Sheets sync error:", e); }
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("Update saved job error:", error);

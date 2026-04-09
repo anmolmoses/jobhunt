@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
 import { eq, desc } from "drizzle-orm";
 import { recordAction } from "@/lib/gamification";
+import { triggerGoogleSheetsSync } from "@/lib/sheets/sync";
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
       .run();
 
     try { recordAction("interview", { savedJobId: body.savedJobId }); } catch (e) { console.error("Gamification error:", e); }
+    try { triggerGoogleSheetsSync(); } catch (e) { console.error("Sheets sync error:", e); }
 
     return NextResponse.json(interview, { status: 201 });
   } catch (error) {

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import type { NormalizedJob, SortOption } from "@/types/jobs";
 
-type ExtendedJob = NormalizedJob & { dbId?: number; savedJobId?: number | null };
+type ExtendedJob = NormalizedJob & { dbId?: number; savedJobId?: number | null; savedJobStatus?: string | null };
 
 export default function JobsPage() {
   const { toast } = useToast();
@@ -261,6 +261,47 @@ export default function JobsPage() {
       setNewSearchResults((prev) => prev.map(updateFn));
     } catch {
       toast("Failed to unsave", "error");
+    }
+  };
+
+  const handleMarkApplied = async (jobId: number) => {
+    try {
+      let savedJobId: number | null = null;
+
+      // Find the job to check if it's already saved
+      const job = [...allJobs, ...newSearchResults].find((j) => j.dbId === jobId);
+      savedJobId = (job as ExtendedJob)?.savedJobId ?? null;
+
+      // If not saved yet, save it first
+      if (!savedJobId) {
+        const saveRes = await fetch("/api/jobs/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jobResultId: jobId }),
+        });
+        if (!saveRes.ok) throw new Error();
+        const saved = await saveRes.json();
+        savedJobId = saved.id;
+      }
+
+      // Now update status to "applied"
+      const res = await fetch(`/api/jobs/save/${savedJobId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "applied" }),
+      });
+      if (!res.ok) throw new Error();
+
+      const updateFn = (j: ExtendedJob) =>
+        j.dbId === jobId ? { ...j, savedJobId: savedJobId!, savedJobStatus: "applied" } : j;
+      setAllJobs((prev) => prev.map(updateFn));
+      setNewSearchResults((prev) => prev.map(updateFn));
+      if (selectedJob?.dbId === jobId) {
+        setSelectedJob((prev) => prev ? { ...prev, savedJobId: savedJobId!, savedJobStatus: "applied" } as ExtendedJob : prev);
+      }
+      toast("Marked as Applied!", "success", { label: "View Tracker", href: "/tracker" });
+    } catch {
+      toast("Failed to mark as applied", "error");
     }
   };
 
@@ -536,8 +577,10 @@ export default function JobsPage() {
         open={!!selectedJob}
         onOpenChange={(open) => !open && setSelectedJob(null)}
         isSaved={!!(selectedJob as ExtendedJob | null)?.savedJobId}
+        isApplied={(selectedJob as ExtendedJob | null)?.savedJobStatus === "applied"}
         onSave={() => selectedJob?.dbId && handleSave(selectedJob.dbId)}
         onUnsave={() => selectedJob?.dbId && handleUnsave(selectedJob.dbId)}
+        onMarkApplied={() => selectedJob?.dbId && handleMarkApplied(selectedJob.dbId)}
       />
     </div>
   );

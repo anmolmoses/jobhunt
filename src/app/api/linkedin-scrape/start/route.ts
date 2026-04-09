@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { startScrape, isRunning, getCooldownRemaining } from "@/lib/jobs/linkedin-auth";
+import { startScrape, isRunning } from "@/lib/jobs/linkedin-auth";
 
 export async function POST() {
   try {
@@ -7,14 +7,6 @@ export async function POST() {
       return NextResponse.json(
         { error: "A scrape is already running" },
         { status: 409 }
-      );
-    }
-
-    const cooldown = getCooldownRemaining();
-    if (cooldown > 0) {
-      return NextResponse.json(
-        { error: "Cooldown active", cooldownMs: cooldown },
-        { status: 429 }
       );
     }
 

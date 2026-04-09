@@ -1,11 +1,10 @@
-import type { NormalizedJob } from "@/types/jobs";
 import { db, schema } from "@/db";
 import { eq, desc } from "drizzle-orm";
 import { getSetting } from "@/lib/settings";
 
 /* ------------------------------------------------------------------ */
 /*  LinkedIn Authenticated Scraper                                     */
-/*  Uses Puppeteer + stealth plugin with li_at cookie injection        */
+/*  Uses Puppeteer with manual stealth evasions + li_at cookie         */
 /*  Scrapes personalized job feeds (Jobs For You, Alerts, Saved)       */
 /* ------------------------------------------------------------------ */
 
@@ -22,8 +21,8 @@ export function stopScrape(): void {
   if (activeScrape) activeScrape.aborted = true;
 }
 
-/** Get cooldown info — returns ms remaining, or 0 if ready */
-export function getCooldownRemaining(): number {
+/** Get time since last run in ms, or null if never run */
+export function getTimeSinceLastRun(): number | null {
   const lastRun = db
     .select()
     .from(schema.linkedinScrapeRuns)
@@ -31,12 +30,10 @@ export function getCooldownRemaining(): number {
     .limit(1)
     .get();
 
-  if (!lastRun) return 0;
+  if (!lastRun) return null;
 
   const lastStart = new Date(lastRun.startedAt).getTime();
-  const cooldownMs = 24 * 60 * 60 * 1000; // 24 hours
-  const elapsed = Date.now() - lastStart;
-  return Math.max(0, cooldownMs - elapsed);
+  return Date.now() - lastStart;
 }
 
 // Logging helper
@@ -66,12 +63,6 @@ function normalize(s: string): string {
 export async function startScrape(): Promise<{ runId: number }> {
   if (activeScrape) {
     throw new Error("A scrape is already running");
-  }
-
-  const cooldown = getCooldownRemaining();
-  if (cooldown > 0) {
-    const hours = Math.ceil(cooldown / (60 * 60 * 1000));
-    throw new Error(`Cooldown active. Try again in ~${hours} hour(s).`);
   }
 
   const liAt = await getSetting("linkedin_li_at");
@@ -109,20 +100,17 @@ export async function startScrape(): Promise<{ runId: number }> {
 async function runScrapeSession(runId: number, liAt: string): Promise<void> {
   log(runId, "info", "Initializing browser with stealth protections...");
 
-  // Dynamic imports for puppeteer-extra (ESM compat)
-  const puppeteerExtra = await import("puppeteer-extra");
-  const StealthPlugin = await import("puppeteer-extra-plugin-stealth");
+  const puppeteer = await import("puppeteer");
 
-  const puppeteer = puppeteerExtra.default;
-  puppeteer.use(StealthPlugin.default());
-
-  const browser = await puppeteer.launch({
+  const browser = await puppeteer.default.launch({
     headless: true,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-blink-features=AutomationControlled",
+      "--disable-infobars",
       "--window-size=1920,1080",
+      "--disable-dev-shm-usage",
     ],
   });
 
@@ -132,6 +120,29 @@ async function runScrapeSession(runId: number, liAt: string): Promise<void> {
 
   try {
     const page = await browser.newPage();
+
+    // --- Manual stealth evasions ---
+    // Hide webdriver flag
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, "webdriver", { get: () => false });
+      // Fake chrome runtime
+      // @ts-expect-error - injecting chrome runtime
+      window.chrome = { runtime: {} };
+      // Fake plugins
+      Object.defineProperty(navigator, "plugins", {
+        get: () => [1, 2, 3, 4, 5],
+      });
+      // Fake languages
+      Object.defineProperty(navigator, "languages", {
+        get: () => ["en-US", "en"],
+      });
+      // Hide automation-related properties
+      const originalQuery = window.navigator.permissions.query;
+      window.navigator.permissions.query = (parameters: PermissionDescriptor) =>
+        parameters.name === "notifications"
+          ? Promise.resolve({ state: "denied" } as PermissionStatus)
+          : originalQuery(parameters);
+    });
 
     // Set realistic viewport and user agent
     await page.setViewport({ width: 1920, height: 1080 });

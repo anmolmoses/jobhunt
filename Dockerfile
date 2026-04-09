@@ -31,6 +31,7 @@ RUN mkdir -p public data
 RUN npx drizzle-kit push 2>/dev/null || true
 # Limit build workers to 1 to prevent concurrent SQLite access
 ENV NEXT_BUILD_WORKERS=1
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
 # ---- Stage 3: Production ----

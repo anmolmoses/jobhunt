@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { parseIdParam } from "@/lib/utils";
+import { triggerGoogleSheetsSync } from "@/lib/sheets/sync";
 
 export async function PATCH(
   request: NextRequest,
@@ -51,6 +52,9 @@ export async function PATCH(
       .run();
 
     const updated = db.select().from(schema.interviews).where(eq(schema.interviews.id, idNum)).get();
+
+    try { triggerGoogleSheetsSync(); } catch (e) { console.error("Sheets sync error:", e); }
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("Update interview error:", error);
@@ -68,6 +72,9 @@ export async function DELETE(
     if (!idNum) return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
 
     db.delete(schema.interviews).where(eq(schema.interviews.id, idNum)).run();
+
+    try { triggerGoogleSheetsSync(); } catch (e) { console.error("Sheets sync error:", e); }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: "Failed to delete" }, { status: 500 });

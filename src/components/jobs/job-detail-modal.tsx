@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   ExternalLink, MapPin, Building2, Calendar, DollarSign, Plus, BookmarkCheck,
   Users, Briefcase, TrendingUp, Loader2, Globe, UserPlus, Send, Link2, Mail,
-  BarChart3, FileText, MessageSquare, Copy, Check,
+  BarChart3, FileText, MessageSquare, Copy, Check, CheckCircle2,
   Target, Zap, Shield, Rocket, Star, RefreshCw,
 } from "lucide-react";
 import type { NormalizedJob } from "@/types/jobs";
@@ -77,8 +77,10 @@ interface JobDetailModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isSaved?: boolean;
+  isApplied?: boolean;
   onSave?: () => void;
   onUnsave?: () => void;
+  onMarkApplied?: () => void;
 }
 
 /** Lightweight markdown→HTML for scraped job descriptions (headings, lists, bold, italic, paragraphs). */
@@ -117,7 +119,7 @@ function formatSalary(n: number, currency?: string): string {
   return symbol + n.toLocaleString();
 }
 
-export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUnsave }: JobDetailModalProps) {
+export function JobDetailModal({ job, open, onOpenChange, isSaved, isApplied, onSave, onUnsave, onMarkApplied }: JobDetailModalProps) {
   const [companyData, setCompanyData] = useState<CompanyData | null>(null);
   const [enrichLoading, setEnrichLoading] = useState(false);
   const [logoError, setLogoError] = useState(false);
@@ -409,6 +411,15 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
               </Button>
             </a>
           )}
+          <Button
+            variant={isApplied ? "secondary" : "outline"}
+            className={isApplied ? "text-green-600" : ""}
+            disabled={isApplied}
+            onClick={() => onMarkApplied?.()}
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            {isApplied ? "Applied" : "Mark Applied"}
+          </Button>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
       .innerJoin(schema.jobResults, eq(schema.savedJobs.jobResultId, schema.jobResults.id))
       .all();
     const savedMap = new Map(savedJobs.map((s) => [s.jobResultId, s.savedId]));
+    const statusMap = new Map(savedJobs.map((s) => [s.jobResultId, s.status]));
 
     // Build company-level tracking map: company (lowercased) → array of tracked jobs
     const companyTrackingMap = new Map<string, { savedJobId: number; jobResultId: number; title: string; status: string }[]>();
@@ -116,6 +117,7 @@ export async function GET(request: NextRequest) {
         ...job,
         tags: JSON.parse(job.tags || "[]"),
         savedJobId: savedMap.get(job.id) || null,
+        savedJobStatus: statusMap.get(job.id) || null,
         dbId: job.id,
         companyTracking: otherTrackedRoles.length > 0 ? otherTrackedRoles : null,
       };

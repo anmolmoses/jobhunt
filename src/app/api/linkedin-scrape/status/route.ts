@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
 import { eq, desc } from "drizzle-orm";
-import { isRunning, getCooldownRemaining } from "@/lib/jobs/linkedin-auth";
+import { isRunning, getTimeSinceLastRun } from "@/lib/jobs/linkedin-auth";
 import { getSetting } from "@/lib/settings";
 
 export async function GET(request: NextRequest) {
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     run: run || null,
     logs,
     isRunning: isRunning(),
-    cooldownMs: getCooldownRemaining(),
+    timeSinceLastRunMs: getTimeSinceLastRun(),
     hasCookie,
   });
 }

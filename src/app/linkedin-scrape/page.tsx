@@ -51,16 +51,21 @@ interface LogEntry {
   createdAt: string;
 }
 
+const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
 export default function LinkedInScrapePage() {
   const { toast } = useToast();
   const [isRunning, setIsRunning] = useState(false);
   const [currentRun, setCurrentRun] = useState<ScrapeRun | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [cooldownMs, setCooldownMs] = useState(0);
+  const [timeSinceLastRunMs, setTimeSinceLastRunMs] = useState<number | null>(null);
   const [hasCookie, setHasCookie] = useState(false);
   const [history, setHistory] = useState<ScrapeRun[]>([]);
   const [starting, setStarting] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+
+  // 2-step confirmation: 0 = idle, 1 = first warning shown, 2 = confirmed (or no warning needed)
+  const [confirmStep, setConfirmStep] = useState(0);
 
   // Cookie input
   const [cookieInput, setCookieInput] = useState("");
@@ -70,6 +75,9 @@ export default function LinkedInScrapePage() {
   const logContainerRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastLogIdRef = useRef(0);
+
+  // Whether the last run was recent (< 24h) — triggers warnings
+  const ranRecently = timeSinceLastRunMs !== null && timeSinceLastRunMs < TWENTY_FOUR_HOURS;
 
   // Poll for status updates
   const pollStatus = useCallback(async (runId?: number) => {
@@ -82,7 +90,7 @@ export default function LinkedInScrapePage() {
       const data = await res.json();
 
       setIsRunning(data.isRunning);
-      setCooldownMs(data.cooldownMs);
+      setTimeSinceLastRunMs(data.timeSinceLastRunMs);
       setHasCookie(data.hasCookie);
 
       if (data.run) {
@@ -122,17 +130,34 @@ export default function LinkedInScrapePage() {
     }
   }, [logs]);
 
-  // Cooldown timer
+  // Reset confirm step when scrape finishes
   useEffect(() => {
-    if (cooldownMs <= 0) return;
-    const interval = setInterval(() => {
-      setCooldownMs((prev) => Math.max(0, prev - 1000));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [cooldownMs]);
+    if (!isRunning) setConfirmStep(0);
+  }, [isRunning]);
 
-  const handleStart = async () => {
+  const handleStartClick = () => {
+    if (!ranRecently) {
+      // No recent run — go straight to launch
+      fireScrape();
+      return;
+    }
+
+    // Recent run exists — step through warnings
+    if (confirmStep === 0) {
+      setConfirmStep(1);
+      return;
+    }
+    if (confirmStep === 1) {
+      setConfirmStep(2);
+      return;
+    }
+    // confirmStep === 2 — user confirmed twice
+    fireScrape();
+  };
+
+  const fireScrape = async () => {
     setStarting(true);
+    setConfirmStep(0);
     try {
       const res = await fetch("/api/linkedin-scrape/start", { method: "POST" });
       const data = await res.json();
@@ -191,11 +216,12 @@ export default function LinkedInScrapePage() {
     }
   };
 
-  const formatCooldown = (ms: number) => {
+  const formatTimeAgo = (ms: number) => {
     const hours = Math.floor(ms / (60 * 60 * 1000));
     const minutes = Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000));
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m`;
+    if (hours > 0) return `${hours}h ${minutes}m ago`;
+    if (minutes > 0) return `${minutes}m ago`;
+    return "just now";
   };
 
   const formatDuration = (start: string, end: string | null) => {
@@ -220,7 +246,21 @@ export default function LinkedInScrapePage() {
     }
   };
 
-  const canStart = hasCookie && !isRunning && cooldownMs === 0 && !starting;
+  const canStart = hasCookie && !isRunning && !starting;
+
+  // Button label changes based on confirm step
+  const getButtonLabel = () => {
+    if (starting) return "Starting...";
+    if (!ranRecently || confirmStep === 2) return "Start Scrape";
+    if (confirmStep === 0) return "Start Scrape";
+    if (confirmStep === 1) return "Yes, I understand the risk — proceed";
+    return "Start Scrape";
+  };
+
+  const getButtonVariant = (): "default" | "destructive" | "secondary" => {
+    if (confirmStep === 1) return "destructive";
+    return "default";
+  };
 
   return (
     <div className="space-y-6 p-6">
@@ -274,7 +314,7 @@ export default function LinkedInScrapePage() {
               <ul className="text-sm text-muted-foreground space-y-1.5">
                 <li className="flex items-start gap-2">
                   <ShieldAlert className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
-                  24-hour cooldown between runs (max 1x/day)
+                  Warns you before running again within 24 hours
                 </li>
                 <li className="flex items-start gap-2">
                   <ShieldAlert className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
@@ -282,7 +322,7 @@ export default function LinkedInScrapePage() {
                 </li>
                 <li className="flex items-start gap-2">
                   <ShieldAlert className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
-                  Stealth plugin hides browser automation fingerprints
+                  Stealth evasions hide browser automation fingerprints
                 </li>
                 <li className="flex items-start gap-2">
                   <ShieldAlert className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
@@ -304,8 +344,8 @@ export default function LinkedInScrapePage() {
                 <p className="text-muted-foreground mt-1">
                   While this tool takes precautions, scraping LinkedIn with an authenticated session carries
                   inherent risk. LinkedIn may detect automated access and temporarily restrict your account.
-                  The 24-hour cooldown and human-like behavior patterns minimize this risk, but cannot eliminate it entirely.
-                  Use at your own discretion.
+                  Human-like behavior patterns minimize this risk, but cannot eliminate it entirely.
+                  We recommend running at most once per day. Use at your own discretion.
                 </p>
               </div>
             </div>
@@ -390,27 +430,78 @@ export default function LinkedInScrapePage() {
           <CardDescription>
             {isRunning
               ? "Scrape is running — jobs are being extracted in the background"
-              : cooldownMs > 0
-              ? `Next scrape available in ${formatCooldown(cooldownMs)}`
+              : timeSinceLastRunMs !== null
+              ? `Last run ${formatTimeAgo(timeSinceLastRunMs)}`
               : "Ready to scrape your LinkedIn feed"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Confirmation warnings when running again within 24h */}
+          {confirmStep >= 1 && ranRecently && (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
+                  <div className="text-sm">
+                    <p className="font-medium text-yellow-600 dark:text-yellow-400">
+                      You ran this {formatTimeAgo(timeSinceLastRunMs!)}
+                    </p>
+                    <p className="text-muted-foreground mt-1">
+                      Running multiple times within 24 hours increases the chance LinkedIn flags your account
+                      for automated activity. We recommend waiting at least 24 hours between runs.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {confirmStep >= 2 && (
+                <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-3">
+                  <div className="flex items-start gap-2">
+                    <ShieldAlert className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                    <div className="text-sm">
+                      <p className="font-medium text-red-600 dark:text-red-400">
+                        Final confirmation
+                      </p>
+                      <p className="text-muted-foreground mt-1">
+                        If LinkedIn detects automation, your account could be temporarily restricted
+                        (typically a 24-48h lockout requiring a CAPTCHA). Click &quot;Start Scrape&quot; below
+                        to proceed anyway.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
             {!isRunning ? (
-              <Button
-                size="lg"
-                onClick={handleStart}
-                disabled={!canStart}
-                className="gap-2"
-              >
-                {starting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Play className="h-4 w-4" />
+              <div className="flex items-center gap-3">
+                <Button
+                  size="lg"
+                  variant={getButtonVariant()}
+                  onClick={handleStartClick}
+                  disabled={!canStart}
+                  className="gap-2"
+                >
+                  {starting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                  {getButtonLabel()}
+                </Button>
+
+                {confirmStep > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setConfirmStep(0)}
+                  >
+                    Cancel
+                  </Button>
                 )}
-                Start Scrape
-              </Button>
+              </div>
             ) : (
               <Button
                 size="lg"
@@ -423,10 +514,10 @@ export default function LinkedInScrapePage() {
               </Button>
             )}
 
-            {cooldownMs > 0 && !isRunning && (
+            {ranRecently && !isRunning && confirmStep === 0 && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Clock className="h-4 w-4" />
-                Cooldown: {formatCooldown(cooldownMs)} remaining
+                Last run {formatTimeAgo(timeSinceLastRunMs!)}
               </div>
             )}
 

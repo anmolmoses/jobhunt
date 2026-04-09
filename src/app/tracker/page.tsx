@@ -14,7 +14,7 @@ import {
   Loader2, Building2, MapPin, Calendar, Clock, ChevronRight, ChevronLeft,
   AlertCircle, Plus, ExternalLink, TrendingUp, Video, Phone,
   FileText, Users, Briefcase, Target, ArrowRight, Search,
-  ArrowUpDown, ArrowUp, ArrowDown, LayoutGrid, Table2,
+  ArrowUpDown, ArrowUp, ArrowDown, LayoutGrid, Table2, Download,
 } from "lucide-react";
 import Link from "next/link";
 import { JobDetailModal } from "@/components/jobs/job-detail-modal";
@@ -129,6 +129,7 @@ export default function TrackerPage() {
   });
   const [addJobLoading, setAddJobLoading] = useState(false);
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
+  const [exporting, setExporting] = useState(false);
   const [tableSearch, setTableSearch] = useState("");
   const [tableStatusFilter, setTableStatusFilter] = useState<string>("all");
   const [tableSortField, setTableSortField] = useState<string>("createdAt");
@@ -345,6 +346,26 @@ export default function TrackerPage() {
     }
   };
 
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch("/api/export/excel");
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `job-tracker-${new Date().toISOString().split("T")[0]}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast("Excel exported!", "success");
+    } catch {
+      toast("Failed to export", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading || !data) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -362,10 +383,16 @@ export default function TrackerPage() {
           <h1 className="text-3xl font-bold">Application Tracker</h1>
           <p className="text-muted-foreground mt-1">Your complete job application pipeline</p>
         </div>
-        <Button onClick={() => setShowAddJob(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Job
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleExportExcel} disabled={exporting}>
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Export Excel
+          </Button>
+          <Button onClick={() => setShowAddJob(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Job
+          </Button>
+        </div>
       </div>
 
       {/* Stats Row */}

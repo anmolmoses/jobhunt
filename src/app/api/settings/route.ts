@@ -14,6 +14,7 @@ const SENSITIVE_KEYS = [
   "hunter_api_key",
   "firecrawl_api_key",
   "linkedin_li_at",
+  "google_service_account_json",
 ];
 
 // Map setting keys to env var names
@@ -40,8 +41,10 @@ export async function GET() {
     for (const setting of allSettings) {
       if (setting.isEncrypted) {
         try {
-          const decrypted = decrypt(setting.value);
-          result[setting.key] = maskApiKey(decrypted);
+          decrypt(setting.value); // verify decryptable
+          result[setting.key] = setting.key === "google_service_account_json"
+            ? "__configured__"
+            : maskApiKey(decrypt(setting.value));
         } catch {
           result[setting.key] = "••••••••";
         }

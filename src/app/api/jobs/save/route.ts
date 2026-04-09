@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
 import { eq, desc } from "drizzle-orm";
 import { recordAction } from "@/lib/gamification";
+import { triggerGoogleSheetsSync } from "@/lib/sheets/sync";
 
 export async function GET() {
   try {
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
       .get();
 
     try { recordAction("save_job", { jobResultId }); } catch (e) { console.error("Gamification error:", e); }
+    try { triggerGoogleSheetsSync(); } catch (e) { console.error("Sheets sync error:", e); }
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
@@ -76,6 +78,8 @@ export async function DELETE(request: NextRequest) {
     db.delete(schema.savedJobs)
       .where(eq(schema.savedJobs.jobResultId, jobResultId))
       .run();
+
+    try { triggerGoogleSheetsSync(); } catch (e) { console.error("Sheets sync error:", e); }
 
     return NextResponse.json({ success: true });
   } catch (error) {

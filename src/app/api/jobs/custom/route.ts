@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { recordAction } from "@/lib/gamification";
+import { triggerGoogleSheetsSync } from "@/lib/sheets/sync";
 
 function normalize(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -69,9 +70,8 @@ export async function POST(request: NextRequest) {
       .returning()
       .get();
 
-    try {
-      recordAction("save_job", { jobResultId: jobResult.id });
-    } catch { /* silent */ }
+    try { recordAction("save_job", { jobResultId: jobResult.id }); } catch { /* silent */ }
+    try { triggerGoogleSheetsSync(); } catch { /* silent */ }
 
     return NextResponse.json({
       ...savedJob,

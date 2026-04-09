@@ -205,19 +205,40 @@ async function runScrapeSession(runId: number, liAt: string): Promise<void> {
 
       try {
         await page.goto(section.url, {
-          waitUntil: "domcontentloaded",
-          timeout: 30000,
+          waitUntil: "networkidle2",
+          timeout: 45000,
         });
-        await randomDelay(2000, 4000);
+        await randomDelay(3000, 5000);
 
         // Check for redirect (auth issues)
-        if (page.url().includes("/login") || page.url().includes("/authwall")) {
+        const landedUrl = page.url();
+        log(runId, "info", `Landed on: ${landedUrl}`);
+        if (landedUrl.includes("/login") || landedUrl.includes("/authwall")) {
           log(runId, "warn", `Redirected away from ${section.name} — skipping`);
           continue;
         }
 
+        // Wait for the job list to render — try multiple possible containers
+        const listSelectors = [
+          ".scaffold-layout__list",
+          ".jobs-search-results-list",
+          ".jobs-search-results__list",
+          "[class*='jobs-search-results']",
+          "ul.jobs-search__results-list",
+          "main",
+        ];
+        for (const sel of listSelectors) {
+          try {
+            await page.waitForSelector(sel, { timeout: 5000 });
+            log(runId, "info", `Found container: ${sel}`);
+            break;
+          } catch {
+            // Try next
+          }
+        }
+
         // Scroll down incrementally to load more jobs
-        const scrollRounds = 8; // ~8 screens of content
+        const scrollRounds = 10;
         for (let i = 0; i < scrollRounds; i++) {
           if (activeScrape?.aborted) break;
 
@@ -227,10 +248,49 @@ async function runScrapeSession(runId: number, liAt: string): Promise<void> {
           await randomDelay(1000, 2500);
         }
 
-        // Small pause after scrolling
+        // Scroll back to top
+        await page.evaluate(() => window.scrollTo(0, 0));
         await randomDelay(1500, 3000);
 
-        // Extract job cards from the page
+        // Diagnostic: dump the page structure to understand what selectors exist
+        const diagnostics = await page.evaluate(() => {
+          const info: Record<string, number> = {};
+          // Check a wide range of possible selectors
+          const testSelectors = [
+            "li", "a[href*='/jobs/view/']", "[data-job-id]",
+            "[data-occludable-job-id]", "[data-entity-urn]",
+            ".job-card-container", ".job-card-list",
+            ".jobs-search-results__list-item",
+            ".scaffold-layout__list-item",
+            ".jobs-job-board-list__item",
+            ".artdeco-entity-lockup",
+            "[class*='job-card']", "[class*='jobs-search']",
+            "[class*='scaffold']", "[class*='entity-result']",
+            ".ember-view",
+          ];
+          for (const sel of testSelectors) {
+            try {
+              info[sel] = document.querySelectorAll(sel).length;
+            } catch { /* skip invalid */ }
+          }
+
+          // Also grab the first job link href if any exist
+          const firstJobLink = document.querySelector("a[href*='/jobs/view/']");
+          if (firstJobLink) {
+            info["__firstJobHref"] = 1;
+          }
+
+          // Get a snippet of the main content area for debugging
+          const main = document.querySelector("main") || document.querySelector("[role='main']") || document.body;
+          const snippet = main?.innerHTML?.substring(0, 2000) || "NO MAIN CONTENT";
+
+          return { selectorCounts: info, htmlSnippet: snippet };
+        });
+
+        log(runId, "info", `DOM selectors found: ${JSON.stringify(diagnostics.selectorCounts)}`);
+        log(runId, "info", `Page HTML snippet (first 500 chars): ${diagnostics.htmlSnippet.substring(0, 500)}`);
+
+        // Extract job cards from the page using broad strategy
         const jobs = await page.evaluate(() => {
           const results: Array<{
             externalId: string;
@@ -244,90 +304,105 @@ async function runScrapeSession(runId: number, liAt: string): Promise<void> {
             salary: string | null;
           }> = [];
 
-          // LinkedIn uses various selectors for job cards across feed types
-          const cardSelectors = [
-            ".jobs-search-results__list-item",
-            ".job-card-container",
-            ".jobs-job-board-list__item",
-            "[data-job-id]",
-            ".scaffold-layout__list-item",
-          ];
+          // Strategy 1: Find all links to /jobs/view/ and work outward
+          const jobLinks = document.querySelectorAll("a[href*='/jobs/view/']");
+          const seen = new Set<string>();
 
-          const cards = new Set<Element>();
-          for (const sel of cardSelectors) {
-            document.querySelectorAll(sel).forEach((el) => cards.add(el));
+          for (const link of jobLinks) {
+            const href = link.getAttribute("href") || "";
+            const match = href.match(/\/jobs\/view\/(\d+)/);
+            if (!match) continue;
+            const jobId = match[1];
+            if (seen.has(jobId)) continue;
+            seen.add(jobId);
+
+            // Walk up to find the card container (usually a <li> or a div with data attributes)
+            let card: Element | null = link;
+            for (let i = 0; i < 8; i++) {
+              if (!card.parentElement) break;
+              card = card.parentElement;
+              if (card.tagName === "LI" || card.getAttribute("data-job-id") || card.getAttribute("data-occludable-job-id")) break;
+            }
+
+            // Title — the link text itself is often the title, or a child element
+            const title = (
+              link.textContent?.trim() ||
+              card.querySelector("[class*='title']")?.textContent?.trim() ||
+              ""
+            ).replace(/\n/g, " ").replace(/\s+/g, " ");
+
+            // Company — look for subtitle or secondary text
+            const company = (
+              card.querySelector("[class*='subtitle'], [class*='company'], [class*='primary-description']")?.textContent?.trim() ||
+              card.querySelector("[class*='artdeco-entity-lockup__subtitle']")?.textContent?.trim() ||
+              ""
+            ).replace(/\n/g, " ").replace(/\s+/g, " ");
+
+            // Location — caption or metadata
+            const location = (
+              card.querySelector("[class*='caption'], [class*='location'], [class*='metadata']")?.textContent?.trim() ||
+              ""
+            ).replace(/\n/g, " ").replace(/\s+/g, " ");
+
+            // Logo
+            const logoEl = card.querySelector("img[src*='company-logo'], img[src*='shrink']");
+            const companyLogo = logoEl?.getAttribute("src") || null;
+
+            const applyUrl = `https://www.linkedin.com/jobs/view/${jobId}/`;
+
+            // Easy Apply
+            const isEasyApply = !!(card.textContent?.includes("Easy Apply"));
+
+            // Salary
+            const salaryEl = card.querySelector("[class*='salary']");
+            const salary = salaryEl?.textContent?.trim() || null;
+
+            // Posted time
+            const timeEl = card.querySelector("time");
+            const postedAt = timeEl?.getAttribute("datetime") || null;
+
+            if (title) {
+              results.push({
+                externalId: jobId,
+                title: title.substring(0, 200),
+                company: company.substring(0, 200),
+                location: location.substring(0, 200),
+                applyUrl,
+                companyLogo,
+                postedAt,
+                isEasyApply,
+                salary,
+              });
+            }
           }
 
-          for (const card of cards) {
-            try {
-              // Extract job ID
-              const jobId =
-                card.getAttribute("data-job-id") ||
-                card.querySelector("[data-job-id]")?.getAttribute("data-job-id") ||
-                (() => {
-                  const link = card.querySelector("a[href*='/jobs/view/']");
-                  const match = link?.getAttribute("href")?.match(/\/jobs\/view\/(\d+)/);
-                  return match?.[1] || null;
-                })();
+          // Strategy 2: data-occludable-job-id (LinkedIn's lazy-loaded cards)
+          if (results.length === 0) {
+            const occludableCards = document.querySelectorAll("[data-occludable-job-id]");
+            for (const card of occludableCards) {
+              const jobId = card.getAttribute("data-occludable-job-id");
+              if (!jobId || seen.has(jobId)) continue;
+              seen.add(jobId);
 
-              if (!jobId) return; // skip if no job ID
-
-              // Title
-              const titleEl =
-                card.querySelector(".job-card-list__title") ||
-                card.querySelector(".artdeco-entity-lockup__title") ||
-                card.querySelector("a[href*='/jobs/view/']");
-              const title = titleEl?.textContent?.trim() || "";
-
-              // Company
-              const companyEl =
-                card.querySelector(".job-card-container__primary-description") ||
-                card.querySelector(".artdeco-entity-lockup__subtitle") ||
-                card.querySelector(".job-card-container__company-name");
-              const company = companyEl?.textContent?.trim() || "";
-
-              // Location
-              const locationEl =
-                card.querySelector(".job-card-container__metadata-item") ||
-                card.querySelector(".artdeco-entity-lockup__caption");
-              const location = locationEl?.textContent?.trim() || "";
-
-              // Logo
-              const logoEl = card.querySelector("img[src*='company-logo']") || card.querySelector("img.artdeco-entity-image");
+              const title = card.querySelector("a")?.textContent?.trim()?.replace(/\n/g, " ").replace(/\s+/g, " ") || "";
+              const company = card.querySelector("[class*='subtitle']")?.textContent?.trim() || "";
+              const location = card.querySelector("[class*='caption']")?.textContent?.trim() || "";
+              const logoEl = card.querySelector("img");
               const companyLogo = logoEl?.getAttribute("src") || null;
 
-              // Apply URL
-              const linkEl = card.querySelector("a[href*='/jobs/view/']");
-              const applyUrl = linkEl ? `https://www.linkedin.com/jobs/view/${jobId}/` : "";
-
-              // Easy Apply badge
-              const isEasyApply = !!card.querySelector(".job-card-container__apply-method") ||
-                !!card.textContent?.includes("Easy Apply");
-
-              // Salary (sometimes shown on card)
-              const salaryEl = card.querySelector(".job-card-list__salary-info") ||
-                card.querySelector("[class*='salary']");
-              const salary = salaryEl?.textContent?.trim() || null;
-
-              // Posted time
-              const timeEl = card.querySelector("time");
-              const postedAt = timeEl?.getAttribute("datetime") || null;
-
-              if (title && company) {
+              if (title) {
                 results.push({
                   externalId: jobId,
-                  title,
-                  company,
-                  location,
-                  applyUrl,
+                  title: title.substring(0, 200),
+                  company: company.substring(0, 200),
+                  location: location.substring(0, 200),
+                  applyUrl: `https://www.linkedin.com/jobs/view/${jobId}/`,
                   companyLogo,
-                  postedAt,
-                  isEasyApply,
-                  salary,
+                  postedAt: null,
+                  isEasyApply: !!(card.textContent?.includes("Easy Apply")),
+                  salary: null,
                 });
               }
-            } catch {
-              // Skip malformed cards
             }
           }
 

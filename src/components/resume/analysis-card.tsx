@@ -1,7 +1,6 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -19,17 +18,17 @@ interface AnalysisData {
   detailedFeedback: string;
 }
 
-function ScoreColor(_score: number): string {
-  return "text-foreground";
-}
-
-function ProgressColor(_score: number): string {
-  return "bg-primary";
+function getScoreColor(score: number): { stroke: string; text: string } {
+  if (score >= 80) return { stroke: "stroke-green-500", text: "text-green-500" };
+  if (score >= 60) return { stroke: "stroke-yellow-500", text: "text-yellow-500" };
+  if (score >= 40) return { stroke: "stroke-orange-500", text: "text-orange-500" };
+  return { stroke: "stroke-red-500", text: "text-red-500" };
 }
 
 function ScoreCircle({ score, label }: { score: number; label: string }) {
   const circumference = 2 * Math.PI * 45;
   const strokeDashoffset = circumference - (score / 100) * circumference;
+  const { stroke, text } = getScoreColor(score);
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -45,13 +44,11 @@ function ScoreCircle({ score, label }: { score: number; label: string }) {
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
-            className={cn(
-              "stroke-foreground"
-            )}
+            className={stroke}
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className={cn("text-2xl font-bold", ScoreColor(score))}>{score}</span>
+          <span className={cn("text-2xl font-bold", text)}>{score}</span>
         </div>
       </div>
       <span className="text-xs font-medium text-muted-foreground">{label}</span>

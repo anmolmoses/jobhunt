@@ -44,11 +44,17 @@ interface StepState {
   detail?: string;
 }
 
+function getScoreColor(score: number): { stroke: string; text: string } {
+  if (score >= 80) return { stroke: "stroke-green-500", text: "text-green-500" };
+  if (score >= 60) return { stroke: "stroke-yellow-500", text: "text-yellow-500" };
+  if (score >= 40) return { stroke: "stroke-orange-500", text: "text-orange-500" };
+  return { stroke: "stroke-red-500", text: "text-red-500" };
+}
+
 function ScoreCircle({ score }: { score: number }) {
   const circumference = 2 * Math.PI * 45;
   const strokeDashoffset = circumference - (score / 100) * circumference;
-  const color = "stroke-foreground";
-  const textColor = "text-foreground";
+  const { stroke: color, text: textColor } = getScoreColor(score);
   return (
     <div className="relative h-32 w-32">
       <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">

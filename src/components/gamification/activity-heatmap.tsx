@@ -15,10 +15,10 @@ interface ActivityHeatmapProps {
 
 function getIntensity(actions: number): string {
   if (actions === 0) return "bg-muted";
-  if (actions <= 2) return "bg-foreground/20";
-  if (actions <= 5) return "bg-foreground/40";
-  if (actions <= 10) return "bg-foreground/60";
-  return "bg-foreground/90";
+  if (actions <= 2) return "bg-green-200 dark:bg-green-900";
+  if (actions <= 5) return "bg-green-400 dark:bg-green-700";
+  if (actions <= 10) return "bg-green-500 dark:bg-green-500";
+  return "bg-green-700 dark:bg-green-400";
 }
 
 const DAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""];
@@ -130,10 +130,10 @@ export function ActivityHeatmap({ data, className }: ActivityHeatmapProps) {
       <div className="flex items-center gap-1 ml-8 mt-1">
         <span className="text-[9px] text-muted-foreground">Less</span>
         <div className="h-[10px] w-[10px] rounded-sm bg-muted" />
-        <div className="h-[10px] w-[10px] rounded-sm bg-foreground/20" />
-        <div className="h-[10px] w-[10px] rounded-sm bg-foreground/40" />
-        <div className="h-[10px] w-[10px] rounded-sm bg-foreground/60" />
-        <div className="h-[10px] w-[10px] rounded-sm bg-foreground/90" />
+        <div className="h-[10px] w-[10px] rounded-sm bg-green-200 dark:bg-green-900" />
+        <div className="h-[10px] w-[10px] rounded-sm bg-green-400 dark:bg-green-700" />
+        <div className="h-[10px] w-[10px] rounded-sm bg-green-500 dark:bg-green-500" />
+        <div className="h-[10px] w-[10px] rounded-sm bg-green-700 dark:bg-green-400" />
         <span className="text-[9px] text-muted-foreground">More</span>
       </div>
     </div>

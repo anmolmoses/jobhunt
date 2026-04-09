@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,9 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import {
-  Loader2, Building2, MapPin, Calendar, Clock, ChevronRight,
+  Loader2, Building2, MapPin, Calendar, Clock, ChevronRight, ChevronLeft,
   AlertCircle, Plus, ExternalLink, TrendingUp, Video, Phone,
   FileText, Users, Briefcase, Target, ArrowRight, Search,
+  ArrowUpDown, ArrowUp, ArrowDown, LayoutGrid, Table2,
 } from "lucide-react";
 import Link from "next/link";
 import { JobDetailModal } from "@/components/jobs/job-detail-modal";
@@ -127,6 +128,95 @@ export default function TrackerPage() {
     description: "", notes: "", status: "saved",
   });
   const [addJobLoading, setAddJobLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
+  const [tableSearch, setTableSearch] = useState("");
+  const [tableStatusFilter, setTableStatusFilter] = useState<string>("all");
+  const [tableSortField, setTableSortField] = useState<string>("createdAt");
+  const [tableSortDir, setTableSortDir] = useState<"asc" | "desc">("desc");
+  const [tablePage, setTablePage] = useState(1);
+  const TABLE_PAGE_SIZE = 25;
+
+  const toggleSort = (field: string) => {
+    if (tableSortField === field) {
+      setTableSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setTableSortField(field);
+      setTableSortDir("asc");
+    }
+    setTablePage(1);
+  };
+
+  const SortIcon = ({ field }: { field: string }) => {
+    if (tableSortField !== field) return <ArrowUpDown className="h-3 w-3 opacity-30" />;
+    return tableSortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
+  };
+
+  const filteredPipeline = useMemo(() => {
+    if (!data) return [];
+    let items = [...data.pipeline];
+
+    if (tableStatusFilter !== "all") {
+      items = items.filter((j) => j.status === tableStatusFilter);
+    }
+
+    if (tableSearch.trim()) {
+      const q = tableSearch.toLowerCase();
+      items = items.filter(
+        (j) =>
+          j.job.title.toLowerCase().includes(q) ||
+          j.job.company.toLowerCase().includes(q) ||
+          (j.job.location && j.job.location.toLowerCase().includes(q)) ||
+          (j.nextStep && j.nextStep.toLowerCase().includes(q))
+      );
+    }
+
+    items.sort((a, b) => {
+      const dir = tableSortDir === "asc" ? 1 : -1;
+      switch (tableSortField) {
+        case "title":
+          return dir * a.job.title.localeCompare(b.job.title);
+        case "company":
+          return dir * a.job.company.localeCompare(b.job.company);
+        case "location":
+          return dir * (a.job.location || "").localeCompare(b.job.location || "");
+        case "status":
+          return dir * a.status.localeCompare(b.status);
+        case "salary": {
+          const sa = a.job.salaryMin || 0;
+          const sb = b.job.salaryMin || 0;
+          return dir * (sa - sb);
+        }
+        case "appliedAt": {
+          const da = a.appliedAt || "";
+          const db = b.appliedAt || "";
+          return dir * da.localeCompare(db);
+        }
+        case "createdAt":
+        default:
+          return dir * a.createdAt.localeCompare(b.createdAt);
+      }
+    });
+
+    return items;
+  }, [data, tableSearch, tableStatusFilter, tableSortField, tableSortDir]);
+
+  const tableTotalPages = Math.max(1, Math.ceil(filteredPipeline.length / TABLE_PAGE_SIZE));
+  const paginatedPipeline = filteredPipeline.slice(
+    (tablePage - 1) * TABLE_PAGE_SIZE,
+    tablePage * TABLE_PAGE_SIZE
+  );
+
+  const statusBadge = (status: string) => {
+    const map: Record<string, { label: string; variant: "default" | "secondary" | "warning" | "success" | "destructive" }> = {
+      saved: { label: "Saved", variant: "secondary" },
+      applied: { label: "Applied", variant: "default" },
+      interviewing: { label: "Interviewing", variant: "warning" },
+      offered: { label: "Offered", variant: "success" },
+      rejected: { label: "Rejected", variant: "destructive" },
+    };
+    const cfg = map[status] || { label: status, variant: "secondary" as const };
+    return <Badge variant={cfg.variant} className="text-[10px] capitalize">{cfg.label}</Badge>;
+  };
 
   const openJobDetail = (item: SavedJob) => {
     setSelectedJob({
@@ -331,9 +421,9 @@ export default function TrackerPage() {
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex gap-1 border-b">
+      <div className="flex items-center gap-1 border-b">
         {[
-          { key: "pipeline" as const, label: "Pipeline Board" },
+          { key: "pipeline" as const, label: "Pipeline" },
           { key: "interviews" as const, label: `Interviews (${interviews.length})` },
           { key: "timeline" as const, label: "Activity Timeline" },
         ].map((tab) => (
@@ -349,10 +439,33 @@ export default function TrackerPage() {
             {tab.label}
           </button>
         ))}
+
+        {activeTab === "pipeline" && (
+          <div className="ml-auto flex items-center gap-1 pb-0.5">
+            <Button
+              variant={viewMode === "kanban" ? "default" : "outline"}
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setViewMode("kanban")}
+              title="Kanban board"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant={viewMode === "table" ? "default" : "outline"}
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setViewMode("table")}
+              title="Table view"
+            >
+              <Table2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Pipeline Board (Kanban) */}
-      {activeTab === "pipeline" && (
+      {activeTab === "pipeline" && viewMode === "kanban" && (
         <div className="grid gap-4 md:grid-cols-5">
           {PIPELINE_COLUMNS.map((col) => {
             const columnJobs = pipeline.filter((j) => j.status === col.key);
@@ -459,6 +572,249 @@ export default function TrackerPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pipeline Table View */}
+      {activeTab === "pipeline" && viewMode === "table" && (
+        <div className="space-y-3">
+          {/* Search & Filters */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search jobs, companies, locations..."
+                value={tableSearch}
+                onChange={(e) => { setTableSearch(e.target.value); setTablePage(1); }}
+                className="pl-9"
+              />
+            </div>
+            <Select
+              value={tableStatusFilter}
+              onChange={(e) => { setTableStatusFilter(e.target.value); setTablePage(1); }}
+              className="w-full sm:w-40"
+            >
+              <option value="all">All Statuses</option>
+              {PIPELINE_COLUMNS.map((col) => (
+                <option key={col.key} value={col.key}>{col.label}</option>
+              ))}
+            </Select>
+          </div>
+
+          {/* Status pill filters */}
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => { setTableStatusFilter("all"); setTablePage(1); }}
+              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                tableStatusFilter === "all"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-input hover:bg-accent text-muted-foreground"
+              }`}
+            >
+              All ({pipeline.length})
+            </button>
+            {PIPELINE_COLUMNS.map((col) => {
+              const count = pipeline.filter((j) => j.status === col.key).length;
+              return (
+                <button
+                  key={col.key}
+                  onClick={() => { setTableStatusFilter(tableStatusFilter === col.key ? "all" : col.key); setTablePage(1); }}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    tableStatusFilter === col.key
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-input hover:bg-accent text-muted-foreground"
+                  }`}
+                >
+                  {col.label} ({count})
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Table */}
+          <div className="rounded-lg border bg-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-3 py-2.5 text-left">
+                      <button onClick={() => toggleSort("status")} className="flex items-center gap-1 font-medium text-muted-foreground hover:text-foreground">
+                        Status <SortIcon field="status" />
+                      </button>
+                    </th>
+                    <th className="px-3 py-2.5 text-left">
+                      <button onClick={() => toggleSort("title")} className="flex items-center gap-1 font-medium text-muted-foreground hover:text-foreground">
+                        Job Title <SortIcon field="title" />
+                      </button>
+                    </th>
+                    <th className="px-3 py-2.5 text-left">
+                      <button onClick={() => toggleSort("company")} className="flex items-center gap-1 font-medium text-muted-foreground hover:text-foreground">
+                        Company <SortIcon field="company" />
+                      </button>
+                    </th>
+                    <th className="px-3 py-2.5 text-left hidden md:table-cell">
+                      <button onClick={() => toggleSort("location")} className="flex items-center gap-1 font-medium text-muted-foreground hover:text-foreground">
+                        Location <SortIcon field="location" />
+                      </button>
+                    </th>
+                    <th className="px-3 py-2.5 text-left hidden lg:table-cell">
+                      <button onClick={() => toggleSort("salary")} className="flex items-center gap-1 font-medium text-muted-foreground hover:text-foreground">
+                        Salary <SortIcon field="salary" />
+                      </button>
+                    </th>
+                    <th className="px-3 py-2.5 text-left hidden xl:table-cell">
+                      <button onClick={() => toggleSort("appliedAt")} className="flex items-center gap-1 font-medium text-muted-foreground hover:text-foreground">
+                        Applied <SortIcon field="appliedAt" />
+                      </button>
+                    </th>
+                    <th className="px-3 py-2.5 text-left hidden xl:table-cell">Follow-up</th>
+                    <th className="px-3 py-2.5 text-left hidden lg:table-cell">Next Step</th>
+                    <th className="w-28 px-3 py-2.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedPipeline.map((item) => (
+                    <tr
+                      key={item.id}
+                      className="border-b last:border-0 transition-colors hover:bg-muted/30 cursor-pointer"
+                      onClick={() => openJobDetail(item)}
+                    >
+                      <td className="px-3 py-2.5">{statusBadge(item.status)}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-2">
+                          {item.job.companyLogo ? (
+                            <img src={item.job.companyLogo} alt="" className="h-6 w-6 rounded object-contain border shrink-0" />
+                          ) : (
+                            <div className="h-6 w-6 rounded bg-muted flex items-center justify-center shrink-0">
+                              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="font-medium truncate max-w-[220px]">{item.job.title}</div>
+                            {item.job.isRemote && (
+                              <span className="text-[10px] text-muted-foreground">Remote</span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="font-medium truncate max-w-[160px]">{item.job.company}</div>
+                        {item.job.provider && (
+                          <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1 rounded">
+                            {item.job.provider}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-muted-foreground hidden md:table-cell truncate max-w-[160px]">
+                        {item.job.location || "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-xs font-mono hidden lg:table-cell">
+                        {item.job.salary || "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-muted-foreground hidden xl:table-cell">
+                        {item.appliedAt ? new Date(item.appliedAt).toLocaleDateString() : "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-xs hidden xl:table-cell">
+                        {item.followUpDate ? (
+                          <span className={item.followUpDate <= new Date().toISOString().split("T")[0] ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                            {item.followUpDate}
+                          </span>
+                        ) : "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-muted-foreground hidden lg:table-cell truncate max-w-[140px]">
+                        {item.nextStep || "—"}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+                          {item.status === "saved" && (
+                            <Button variant="ghost" size="sm" className="h-7 text-[10px] px-2" onClick={() => updateJobStatus(item.id, "applied")}>
+                              <Target className="h-3 w-3" /> Apply
+                            </Button>
+                          )}
+                          {item.status === "applied" && (
+                            <Button variant="ghost" size="sm" className="h-7 text-[10px] px-2" onClick={() => setInterviewModal(item.id)}>
+                              <Plus className="h-3 w-3" /> Interview
+                            </Button>
+                          )}
+                          {item.status === "interviewing" && (
+                            <Button variant="ghost" size="sm" className="h-7 text-[10px] px-2" onClick={() => updateJobStatus(item.id, "offered")}>
+                              <TrendingUp className="h-3 w-3" /> Offer
+                            </Button>
+                          )}
+                          {item.job.applyUrl && (
+                            <a href={item.job.applyUrl} target="_blank" rel="noopener noreferrer">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Open posting">
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </Button>
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {paginatedPipeline.length === 0 && (
+                    <tr>
+                      <td colSpan={9} className="px-3 py-12 text-center text-muted-foreground">
+                        {pipeline.length === 0 ? (
+                          <div className="space-y-2">
+                            <Search className="h-8 w-8 mx-auto text-muted-foreground/50" />
+                            <p className="font-medium">No tracked jobs yet</p>
+                            <Link href="/jobs">
+                              <Button variant="outline" size="sm" className="text-xs h-7">
+                                <Plus className="h-3 w-3" /> Find Jobs to Track
+                              </Button>
+                            </Link>
+                          </div>
+                        ) : (
+                          "No jobs match your filters"
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {tableTotalPages > 1 && (
+              <div className="flex items-center justify-between border-t px-4 py-3">
+                <span className="text-xs text-muted-foreground">
+                  Showing {(tablePage - 1) * TABLE_PAGE_SIZE + 1}–{Math.min(tablePage * TABLE_PAGE_SIZE, filteredPipeline.length)} of {filteredPipeline.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setTablePage((p) => Math.max(1, p - 1))} disabled={tablePage === 1}>
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  {Array.from({ length: Math.min(tableTotalPages, 7) }, (_, i) => {
+                    let pageNum: number;
+                    if (tableTotalPages <= 7) {
+                      pageNum = i + 1;
+                    } else if (tablePage <= 4) {
+                      pageNum = i + 1;
+                    } else if (tablePage >= tableTotalPages - 3) {
+                      pageNum = tableTotalPages - 6 + i;
+                    } else {
+                      pageNum = tablePage - 3 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={tablePage === pageNum ? "default" : "outline"}
+                        size="icon"
+                        className="h-7 w-7 text-xs"
+                        onClick={() => setTablePage(pageNum)}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setTablePage((p) => Math.min(tableTotalPages, p + 1))} disabled={tablePage === tableTotalPages}>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

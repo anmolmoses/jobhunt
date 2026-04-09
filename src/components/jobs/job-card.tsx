@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BookmarkCheck, MapPin, Building2, Calendar, DollarSign, Plus, Info } from "lucide-react";
+import { useState } from "react";
 import Link from "next/link";
 import type { NormalizedJob } from "@/types/jobs";
 
@@ -33,6 +34,7 @@ interface JobCardProps {
 }
 
 export function JobCard({ job, isSaved, onSave, onUnsave, onClick }: JobCardProps) {
+  const [logoError, setLogoError] = useState(false);
   const postedDate = job.postedAt
     ? new Date(job.postedAt).toLocaleDateString()
     : null;
@@ -44,11 +46,12 @@ export function JobCard({ job, isSaved, onSave, onUnsave, onClick }: JobCardProp
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3 min-w-0">
-          {job.companyLogo ? (
+          {job.companyLogo && !logoError ? (
             <img
               src={job.companyLogo}
               alt={job.company}
               className="h-10 w-10 rounded-lg object-contain border"
+              onError={() => setLogoError(true)}
             />
           ) : (
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">

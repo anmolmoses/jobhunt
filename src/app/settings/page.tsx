@@ -40,6 +40,8 @@ export default function SettingsPage() {
   const [envSources, setEnvSources] = useState<Set<string>>(new Set());
   const [geocodeProgress, setGeocodeProgress] = useState<string | null>(null);
   const [geocoding, setGeocoding] = useState(false);
+  const [logoProgress, setLogoProgress] = useState<string | null>(null);
+  const [refreshingLogos, setRefreshingLogos] = useState(false);
 
   const [settings, setSettings] = useState({
     ai_provider: "claude",
@@ -194,6 +196,51 @@ export default function SettingsPage() {
     } finally {
       setGeocoding(false);
       setGeocodeProgress(null);
+    }
+  };
+
+  const handleRefreshLogos = async (force: boolean) => {
+    setRefreshingLogos(true);
+    setLogoProgress("Starting...");
+    try {
+      const res = await fetch(`/api/jobs/logos${force ? "?force=true" : ""}`, { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json();
+        toast(data.error || "Failed to refresh logos", "error");
+        return;
+      }
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No stream");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.step) setLogoProgress(`${data.step}${data.detail ? ` (${data.detail})` : ""}`);
+              if (data.done) {
+                toast(`Logos updated: ${data.updated}/${data.total} companies`, "success");
+              }
+              if (data.error) toast(data.error, "error");
+            } catch { /* skip malformed events */ }
+          }
+        }
+      }
+    } catch {
+      toast("Failed to refresh logos", "error");
+    } finally {
+      setRefreshingLogos(false);
+      setLogoProgress(null);
     }
   };
 
@@ -458,6 +505,45 @@ export default function SettingsPage() {
             ) : (
               <p className="text-xs text-muted-foreground">
                 Company logos for jobs without logos. 500K req/month free. Get key from logo.dev
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-lg border p-3 space-y-2">
+            <div>
+              <p className="text-sm font-medium flex items-center gap-1.5">
+                <RefreshCw className="h-4 w-4" />
+                Refresh Company Logos
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Fetch logos via Logo.dev for all companies in your job results.
+                Fix missing or broken logos.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={refreshingLogos || (!settings.logodev_api_key && !envSources.has("logodev_api_key"))}
+                onClick={() => handleRefreshLogos(false)}
+              >
+                {refreshingLogos ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Fix Broken &amp; Missing
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={refreshingLogos || (!settings.logodev_api_key && !envSources.has("logodev_api_key"))}
+                onClick={() => handleRefreshLogos(true)}
+              >
+                {refreshingLogos ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Refresh All Logos
+              </Button>
+            </div>
+            {logoProgress && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {logoProgress}
               </p>
             )}
           </div>

@@ -205,6 +205,13 @@ export async function searchJobs(
 
     if (existing) {
       // Already in DB from a previous search — reuse existing ID
+      // Update logo if we now have one and the DB row doesn't
+      if (job.companyLogo) {
+        db.update(schema.jobResults)
+          .set({ companyLogo: job.companyLogo })
+          .where(eq(schema.jobResults.id, existing.id))
+          .run();
+      }
       return { ...job, dbId: existing.id };
     }
 

@@ -13,6 +13,7 @@ const SENSITIVE_KEYS = [
   "logodev_api_key",
   "hunter_api_key",
   "firecrawl_api_key",
+  "linkedin_li_at",
 ];
 
 // Map setting keys to env var names

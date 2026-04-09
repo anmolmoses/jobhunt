@@ -120,6 +120,7 @@ function formatSalary(n: number, currency?: string): string {
 export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUnsave }: JobDetailModalProps) {
   const [companyData, setCompanyData] = useState<CompanyData | null>(null);
   const [enrichLoading, setEnrichLoading] = useState(false);
+  const [logoError, setLogoError] = useState(false);
   const [contacts, setContacts] = useState<NetworkContact[]>([]);
   const [contactsLoading, setContactsLoading] = useState(false);
   const [contactsError, setContactsError] = useState<string | null>(null);
@@ -374,8 +375,8 @@ export function JobDetailModal({ job, open, onOpenChange, isSaved, onSave, onUns
         <SheetHeader>
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3">
-              {job.companyLogo ? (
-                <img src={job.companyLogo} alt={job.company} className="h-12 w-12 rounded-lg object-contain border" />
+              {job.companyLogo && !logoError ? (
+                <img src={job.companyLogo} alt={job.company} className="h-12 w-12 rounded-lg object-contain border" onError={() => setLogoError(true)} />
               ) : (
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
                   <Building2 className="h-6 w-6 text-muted-foreground" />

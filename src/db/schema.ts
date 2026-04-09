@@ -601,6 +601,34 @@ export const linkedinOutreach = sqliteTable("linkedin_outreach", {
     .default(sql`(datetime('now'))`),
 });
 
+// LinkedIn authenticated scrape — run history
+export const linkedinScrapeRuns = sqliteTable("linkedin_scrape_runs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  status: text("status").notNull().default("running"), // "running", "completed", "failed", "stopped"
+  jobsFound: integer("jobs_found").notNull().default(0),
+  jobsInserted: integer("jobs_inserted").notNull().default(0),
+  pagesScraped: integer("pages_scraped").notNull().default(0),
+  errorMessage: text("error_message"),
+  startedAt: text("started_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  finishedAt: text("finished_at"),
+});
+
+// LinkedIn authenticated scrape — real-time log entries
+export const linkedinScrapeLogs = sqliteTable("linkedin_scrape_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  runId: integer("run_id")
+    .notNull()
+    .references(() => linkedinScrapeRuns.id, { onDelete: "cascade" }),
+  level: text("level").notNull().default("info"), // "info", "warn", "error", "success"
+  message: text("message").notNull(),
+  metadata: text("metadata"), // JSON: optional extra data
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 export const gamificationAchievements = sqliteTable("gamification_achievements", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   achievementId: text("achievement_id").notNull().unique(),

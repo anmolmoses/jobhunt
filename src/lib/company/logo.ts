@@ -1,13 +1,13 @@
 import { getSetting } from "@/lib/settings";
 
 /**
- * Get a company logo URL via logo.dev.
- * Tries domain guessing first, falls back to brand search.
- * Returns null if no token configured.
+ * Get a company logo URL via the local proxy (which fetches from logo.dev server-side).
+ * Returns a proxy URL like /api/logos?domain=example.com
+ * Returns null if no token configured or domain can't be guessed.
  */
 export async function getCompanyLogoUrl(companyName: string, existingLogo: string | null): Promise<string | null> {
-  // If we already have a logo, keep it
-  if (existingLogo) return existingLogo;
+  // If we already have a working logo (non-logo.dev direct URL), keep it
+  if (existingLogo && !existingLogo.includes("img.logo.dev/")) return existingLogo;
 
   const token = await getSetting("logodev_api_key");
   if (!token) return null;
@@ -15,8 +15,7 @@ export async function getCompanyLogoUrl(companyName: string, existingLogo: strin
   // Guess the domain from the company name
   const domain = guessDomain(companyName);
   if (domain) {
-    // Use logo.dev with monogram fallback — this way if logo doesn't exist, it shows initials instead of broken image
-    return `https://img.logo.dev/${domain}?token=${token}&size=128&format=png&fallback=monogram`;
+    return `/api/logos?domain=${encodeURIComponent(domain)}`;
   }
 
   return null;
@@ -51,10 +50,10 @@ export function guessDomain(companyName: string): string | null {
 }
 
 /**
- * Build logo URL directly for a known domain.
+ * Build logo proxy URL for a known domain.
  */
 export async function getLogoUrlForDomain(domain: string): Promise<string | null> {
   const token = await getSetting("logodev_api_key");
   if (!token) return null;
-  return `https://img.logo.dev/${domain}?token=${token}&size=128&format=png`;
+  return `/api/logos?domain=${encodeURIComponent(domain)}`;
 }

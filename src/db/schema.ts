@@ -438,6 +438,51 @@ export const companyPortals = sqliteTable("company_portals", {
   titleExclusions: text("title_exclusions").notNull().default("[]"), // JSON: negative keywords to exclude
   lastScannedAt: text("last_scanned_at"),
   lastScanJobCount: integer("last_scan_job_count"),
+  // Company directory fields (from Fortune CSV import)
+  fortuneRank: integer("fortune_rank"),
+  industry: text("industry"),
+  revenue: text("revenue"), // e.g. "$716.9B"
+  employees: text("employees"), // e.g. "1,600,000"
+  hqCity: text("hq_city"),
+  hqState: text("hq_state"),
+  website: text("website"),
+  ceo: text("ceo"),
+  founded: text("founded"),
+  publicPrivate: text("public_private"), // "Public", "Private"
+  ticker: text("ticker"),
+  fundingInfo: text("funding_info"), // "IPO" or "Series F ($1.4B raised, $14B valuation)"
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// Notifications — alerts for new jobs, scan completions, etc.
+export const notifications = sqliteTable("notifications", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  type: text("type").notNull(), // "new_jobs", "scan_complete", "scan_error", "system"
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  metadata: text("metadata"), // JSON: { portalId, jobCount, companyName, etc. }
+  read: integer("read", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// Portal scan schedule — config for automated career page scanning
+export const portalScanConfig = sqliteTable("portal_scan_config", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+  schedule: text("schedule").notNull().default("0 8 * * *"), // Default: daily at 8 AM
+  scanBatchSize: integer("scan_batch_size").notNull().default(20), // How many portals per run
+  notifyOnNewJobs: integer("notify_on_new_jobs", { mode: "boolean" }).notNull().default(true),
+  lastRunAt: text("last_run_at"),
+  lastRunStatus: text("last_run_status"), // "success", "failed", "running"
+  lastRunMessage: text("last_run_message"),
+  lastRunNewJobs: integer("last_run_new_jobs"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),

@@ -246,7 +246,7 @@ function extractDomain(url: string): string | null {
 async function scanPortal(
   portal: typeof schema.companyPortals.$inferSelect,
   prefs: UserPreferences | null = null,
-): Promise<{ count: number; error?: string }> {
+): Promise<{ count: number; newJobs?: number; error?: string }> {
   try {
     let results: ScanResult[];
 
@@ -324,6 +324,7 @@ async function scanPortal(
     }
 
     // Upsert results — use dedupeKey to avoid duplicates
+    let newJobCount = 0;
     for (const job of results) {
       const dedupeKey = `${portal.id}-${job.externalId}`;
 
@@ -348,6 +349,7 @@ async function scanPortal(
             dedupeKey,
           })
           .run();
+        newJobCount++;
       }
     }
 
@@ -360,7 +362,24 @@ async function scanPortal(
       .where(eq(schema.companyPortals.id, portal.id))
       .run();
 
-    return { count: results.length };
+    // Create notification if new jobs were found
+    if (newJobCount > 0) {
+      db.insert(schema.notifications)
+        .values({
+          type: "new_jobs",
+          title: `${newJobCount} new job${newJobCount > 1 ? "s" : ""} at ${portal.companyName}`,
+          message: `Found ${newJobCount} new position${newJobCount > 1 ? "s" : ""} at ${portal.companyName}. ${results.length} total jobs matched your filters.`,
+          metadata: JSON.stringify({
+            portalId: portal.id,
+            companyName: portal.companyName,
+            newJobs: newJobCount,
+            totalJobs: results.length,
+          }),
+        })
+        .run();
+    }
+
+    return { count: results.length, newJobs: newJobCount };
   } catch (error) {
     console.error(`Scan error for ${portal.companyName}:`, error);
     return { count: 0, error: error instanceof Error ? error.message : "Unknown error" };

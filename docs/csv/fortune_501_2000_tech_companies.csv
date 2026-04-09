@@ -1,0 +1,92 @@
+Fortune_Rank,Company,Industry,Revenue,Employees,HQ_City,HQ_State,Website,Careers_URL,CEO,Founded,Public_Private,Ticker,Funding_Info
+501,Zoom Video Communications,Video & Collaboration Software,$4.6B,"7,600",San Jose,CA,https://zoom.us,https://careers.zoom.us,Eric Yuan,2011,Public,ZM,IPO
+505,Roblox,Gaming Platform,$3.6B,"2,300",San Mateo,CA,https://roblox.com,https://careers.roblox.com,David Baszucki,2004,Public,RBLX,IPO
+510,Dropbox,Cloud Storage & Collaboration,$2.5B,"3,200",San Francisco,CA,https://dropbox.com,https://jobs.dropbox.com,Drew Houston,2007,Public,DBX,IPO
+515,Shopify,E-commerce Platform,$8.9B,"11,600",Ottawa/US,N/A,https://shopify.com,https://www.shopify.com/careers,Tobi Lütke,2006,Public,SHOP,IPO
+520,Robinhood,Fintech Trading Platform,$2.4B,"3,800",Menlo Park,CA,https://robinhood.com,https://careers.robinhood.com,Vlad Tenev,2013,Public,HOOD,IPO
+525,Toast,Restaurant Tech & POS,$4.3B,"5,500",Boston,MA,https://toast.com,https://careers.toasttab.com,Aman Narang,2012,Public,TOST,IPO
+530,Marvell Technology,Semiconductors & Data Infrastructure,$5.5B,"8,500",Wilmington,DE,https://marvell.com,https://www.marvell.com/company/careers.html,Matt Murphy,1995,Public,MRVL,IPO
+535,Coinbase,Crypto Exchange & Web3,$6.6B,"3,700",San Francisco,CA,https://coinbase.com,https://www.coinbase.com/careers,Brian Armstrong,2012,Public,COIN,IPO
+540,Wix.com,Website Builder Platform,$1.8B,"5,700",New York,NY,https://wix.com,https://www.wix.com/jobs,Avishai Abrahami,2006,Public,WIX,IPO
+545,DocuSign,E-signature & Agreement Cloud,$2.8B,"6,900",San Francisco,CA,https://docusign.com,https://www.docusign.com/careers,Allan Thygesen,2003,Public,DOCU,IPO
+550,Agilent Technologies,Life Sciences & Diagnostics Tech,$6.4B,"18,000",Santa Clara,CA,https://agilent.com,https://careers.agilent.com,Padraig McDonnell,1999,Public,A,IPO
+555,Trade Desk,Programmatic Advertising Tech,$2.4B,"4,000",Ventura,CA,https://thetradedesk.com,https://www.thetradedesk.com/us/careers,Jeff Green,2009,Public,TTD,IPO
+560,Astera Labs,Semiconductor Connectivity,$900M,600,Santa Clara,CA,https://asteralabs.com,https://www.asteralabs.com/company/careers/,Jitendra Mohan,2017,Public,ALAB,IPO
+565,Informatica,Data Integration & Management,$1.7B,"6,200",Redwood City,CA,https://informatica.com,https://www.informatica.com/about-us/careers.html,Amit Walia,1993,Public,INFA,IPO
+570,SentinelOne,AI Cybersecurity,$742M,"2,700",Mountain View,CA,https://sentinelone.com,https://www.sentinelone.com/careers/,Tomer Weingarten,2013,Public,S,IPO
+575,Autodesk,Design & Engineering Software,$6.1B,"14,600",San Francisco,CA,https://autodesk.com,https://www.autodesk.com/careers,Andrew Anagnost,1982,Public,ADSK,IPO
+580,ANSYS,Simulation Software,$2.3B,"6,100",Canonsburg,PA,https://ansys.com,https://www.ansys.com/about-ansys/careers,Ajei Gopal,1970,Public,ANSS,IPO (Synopsys acquisition pending)
+585,PTC,Industrial IoT & PLM Software,$2.3B,"7,300",Boston,MA,https://ptc.com,https://www.ptc.com/en/careers,Neil Barua,1985,Public,PTC,IPO
+590,Teradata,Cloud Analytics & Data Warehouse,$1.7B,"7,000",San Diego,CA,https://teradata.com,https://careers.teradata.com,Steve McMillan,1979,Public,TDC,IPO
+595,Canva,Graphic Design Platform,$2.5B+,"5,000",Sydney/US,N/A,https://canva.com,https://www.canva.com/careers/,Melanie Perkins,2012,Private,N/A,"Series A ($572M, $26B valuation)"
+600,Scale AI,AI Data Platform,$1.3B+,"1,500",San Francisco,CA,https://scale.com,https://scale.com/careers,Alexandr Wang,2016,Private,N/A,"Series F ($1.4B raised, $14B valuation)"
+605,Anthropic,AI Safety & LLM Research,$2B+,"1,500",San Francisco,CA,https://anthropic.com,https://www.anthropic.com/careers,Dario Amodei,2021,Private,N/A,"Series E ($11.5B raised, $60B valuation)"
+610,OpenAI,AI Research & Products,$5B+,"3,400",San Francisco,CA,https://openai.com,https://openai.com/careers/,Sam Altman,2015,Private (capped-profit),N/A,"$13B+ from Microsoft, $300B valuation"
+615,Plaid,Financial Data APIs,$500M+,"1,100",San Francisco,CA,https://plaid.com,https://plaid.com/careers/,Zach Perret,2013,Private,N/A,"Series D ($734M, $13.4B valuation)"
+620,Vercel,Frontend Cloud & Next.js,$200M+,600,San Francisco,CA,https://vercel.com,https://vercel.com/careers,Guillermo Rauch,2015,Private,N/A,"Series E ($363M, $3.5B valuation)"
+625,Supabase,Open Source Backend-as-a-Service,$100M+,350,San Francisco,CA,https://supabase.com,https://supabase.com/careers,Paul Copplestone,2020,Private,N/A,"Series C ($200M, $2B valuation)"
+630,Grafana Labs,Observability & Monitoring,$500M+,"1,200",New York,NY,https://grafana.com,https://grafana.com/about/careers/,Raj Dutt,2014,Private,N/A,"Series D ($294M, $6B valuation)"
+635,Cockroach Labs,Distributed SQL Database,$200M+,500,New York,NY,https://cockroachlabs.com,https://www.cockroachlabs.com/careers/,Spencer Kimball,2015,Private,N/A,"Series F ($278M, $5B valuation)"
+640,Postman,API Development Platform,$300M+,800,San Francisco,CA,https://postman.com,https://www.postman.com/company/careers/,Abhinav Asthana,2014,Private,N/A,"Series D ($225M, $5.6B valuation)"
+645,Snyk,Developer Security Platform,$400M+,"1,200",Boston,MA,https://snyk.io,https://snyk.io/careers/,Peter McKay,2015,Private,N/A,"Series G ($530M, $7.4B valuation)"
+650,Instacart,Grocery Delivery Tech,$3.3B,"3,500",San Francisco,CA,https://instacart.com,https://instacart.careers,Fidji Simo,2012,Public,CART,IPO
+655,Mapbox,Location & Mapping Platform,$300M+,"1,000",Washington,DC,https://mapbox.com,https://www.mapbox.com/careers,Peter Sirota,2010,Private,N/A,Series E ($280M)
+660,GitHub (Microsoft),Code Hosting & DevOps,Part of Microsoft,"3,000",San Francisco,CA,https://github.com,https://github.com/about/careers,Thomas Dohmke,2008,Subsidiary,N/A,Acquired by Microsoft ($7.5B)
+665,Rippling,HR & IT Platform,$500M+,"3,000",San Francisco,CA,https://rippling.com,https://www.rippling.com/careers,Parker Conrad,2016,Private,N/A,"Series F ($1.2B raised, $13.5B valuation)"
+670,Anduril Industries,Defense AI & Autonomy,$1B+,"4,000",Costa Mesa,CA,https://anduril.com,https://www.anduril.com/careers/,Brian Schimpf,2017,Private,N/A,"Series F ($3.7B raised, $14B valuation)"
+675,Navan (TripActions),Travel & Expense Management,$800M+,"3,000",Palo Alto,CA,https://navan.com,https://navan.com/careers,Ariel Cohen,2015,Private,N/A,"Series H ($1.2B raised, $9.2B valuation)"
+680,Wiz,Cloud Security,$700M+,"2,000",New York,NY,https://wiz.io,https://www.wiz.io/careers,Assaf Rappaport,2020,Private,N/A,"Series E+ ($2B raised, $12B valuation)"
+685,CoreWeave,GPU Cloud Infrastructure,$2B+,"1,500",Livingston,NJ,https://coreweave.com,https://coreweave.com/careers,Michael Intrator,2017,Private,N/A,"Series C ($12B+ raised, $35B valuation)"
+690,Cerebras Systems,AI Chip Hardware,$500M+,500,Sunnyvale,CA,https://cerebras.net,https://cerebras.net/careers/,Andrew Feldman,2016,Private,N/A,"Series F ($4.3B raised, $8.3B valuation)"
+695,Fivetran,Automated Data Integration,$300M+,900,Oakland,CA,https://fivetran.com,https://www.fivetran.com/careers,George Fraser,2012,Private,N/A,"Series D ($730M raised, $5.6B valuation)"
+700,dbt Labs,Analytics Engineering,$200M+,600,Philadelphia,PA,https://getdbt.com,https://www.getdbt.com/community/join-the-team,Tristan Handy,2016,Private,N/A,"Series D ($414M raised, $4.2B valuation)"
+710,Miro,Visual Collaboration Platform,$700M+,"1,800",San Francisco,CA,https://miro.com,https://miro.com/careers/,Andrey Khusid,2011,Private,N/A,"Series C ($400M, $17.5B valuation)"
+720,Gusto,HR & Payroll Platform,$500M+,"2,500",San Francisco,CA,https://gusto.com,https://gusto.com/about/careers,Josh Reeves,2011,Private,N/A,"Series E ($675M raised, $9.5B valuation)"
+730,Retool,Internal Tools Platform,$200M+,500,San Francisco,CA,https://retool.com,https://retool.com/careers,David Hsu,2017,Private,N/A,"Series D ($445M raised, $3.2B valuation)"
+740,Linear,Project Management for Engineers,$50M+,100,San Francisco,CA,https://linear.app,https://linear.app/careers,Karri Saarinen,2019,Private,N/A,"Series C ($52M, $500M valuation)"
+750,Anyscale (Ray),AI Infrastructure,$200M+,400,San Francisco,CA,https://anyscale.com,https://www.anyscale.com/careers,Robert Nishihara,2019,Private,N/A,"Series C ($260M, $2.5B valuation)"
+760,Chainguard,Software Supply Chain Security,$100M+,300,Kirkland,WA,https://chainguard.dev,https://www.chainguard.dev/careers,Dan Lorenc,2021,Private,N/A,"Series C ($356M raised, $3.5B valuation)"
+770,Temporal,Workflow Orchestration,$100M+,300,Seattle,WA,https://temporal.io,https://temporal.io/careers,Maxim Fateev,2019,Private,N/A,"Series C ($246M raised, $1.5B valuation)"
+780,Neon,Serverless Postgres,$50M+,200,San Francisco,CA,https://neon.tech,https://neon.tech/careers,Nikita Shamgunov,2021,Private,N/A,"Series C ($205M raised, $1.3B valuation)"
+790,Mercury,Fintech Banking for Startups,$300M+,900,San Francisco,CA,https://mercury.com,https://mercury.com/jobs,Immad Akhund,2017,Private,N/A,"Series C ($300M, $3.5B valuation)"
+800,Cohere,Enterprise AI / LLMs,$500M+,600,Toronto/SF,CA,https://cohere.com,https://cohere.com/careers,Aidan Gomez,2019,Private,N/A,"Series D ($970M raised, $5.5B valuation)"
+810,Mistral AI,Open Source LLMs,$300M+,700,Paris/US,N/A,https://mistral.ai,https://mistral.ai/careers/,Arthur Mensch,2023,Private,N/A,"Series B ($1.3B raised, $6B valuation)"
+820,Groq,AI Inference Chips,$200M+,400,Mountain View,CA,https://groq.com,https://groq.com/careers/,Jonathan Ross,2016,Private,N/A,"Series D ($640M raised, $2.8B valuation)"
+830,Perplexity AI,AI-powered Search Engine,$100M+,300,San Francisco,CA,https://perplexity.ai,https://www.perplexity.ai/hub/careers,Aravind Srinivas,2022,Private,N/A,"Series B ($500M raised, $9B valuation)"
+840,Cursor (Anysphere),AI Code Editor,$200M+,100,San Francisco,CA,https://cursor.com,https://www.cursor.com/careers,Michael Truell,2022,Private,N/A,"Series C ($900M raised, $9.9B valuation)"
+850,Replit,AI-powered IDE & Cloud Dev,$100M+,250,San Francisco,CA,https://replit.com,https://replit.com/site/careers,Amjad Masad,2016,Private,N/A,"Series C ($222M raised, $1.16B valuation)"
+860,Together AI,AI Cloud & Open Models,$200M+,200,San Francisco,CA,https://together.ai,https://www.together.ai/careers,Vipul Prakash,2022,Private,N/A,"Series B ($525M raised, $3.3B valuation)"
+870,Weights & Biases,ML Ops & Experiment Tracking,$100M+,400,San Francisco,CA,https://wandb.ai,https://wandb.ai/careers,Lukas Biewald,2017,Private,N/A,"Series D ($400M raised, $1.25B valuation)"
+880,Coda,Doc-powered Workflows,$50M+,400,San Francisco,CA,https://coda.io,https://coda.io/jobs,Shishir Mehrotra,2014,Private,N/A,"Series D ($400M raised, $1.4B valuation)"
+890,LaunchDarkly,Feature Management Platform,$200M+,800,Oakland,CA,https://launchdarkly.com,https://launchdarkly.com/careers/,Edith Harbaugh,2014,Private,N/A,"Series E ($330M raised, $3B valuation)"
+900,GitHub Copilot / Microsoft DevDiv,AI Dev Tools,Part of Microsoft,N/A,Redmond,WA,https://github.com/features/copilot,https://careers.microsoft.com,N/A,N/A,Subsidiary,N/A,Part of Microsoft
+910,Netlify,Web Development Platform,$100M+,350,San Francisco,CA,https://netlify.com,https://www.netlify.com/careers/,Matt Biilmann,2014,Private,N/A,"Series D ($200M raised, $2B valuation)"
+920,Lattice,People Management Platform,$150M+,800,San Francisco,CA,https://lattice.com,https://lattice.com/careers,Jack Altman,2015,Private,N/A,"Series F ($329M raised, $3B valuation)"
+930,Harness,DevOps & CI/CD Platform,$200M+,"1,000",San Francisco,CA,https://harness.io,https://www.harness.io/company/careers,Jyoti Bansal,2016,Private,N/A,"Series D ($425M raised, $3.7B valuation)"
+940,Render,Cloud Hosting Platform,$50M+,150,San Francisco,CA,https://render.com,https://render.com/careers,Anurag Goel,2018,Private,N/A,Series C ($80M raised)
+950,Samsara,IoT & Fleet Management,$1.0B,"3,000",San Francisco,CA,https://samsara.com,https://www.samsara.com/company/careers,Sanjit Biswas,2015,Public,IOT,IPO
+960,UiPath,Robotic Process Automation,$1.4B,"4,100",New York,NY,https://uipath.com,https://www.uipath.com/company/careers,Daniel Dines,2005,Public,PATH,IPO
+970,SoFi Technologies,Fintech & Digital Banking,$2.6B,"5,500",San Francisco,CA,https://sofi.com,https://www.sofi.com/careers/,Anthony Noto,2011,Public,SOFI,IPO
+980,Marqeta,Card Issuing Platform,$600M,700,Oakland,CA,https://marqeta.com,https://www.marqeta.com/company/careers,Simon Khalaf,2010,Public,MQ,IPO
+990,Bill Holdings,Financial Automation,$1.4B,"2,300",San Jose,CA,https://bill.com,https://www.bill.com/about-us/careers,René Lacerte,2006,Public,BILL,IPO
+1000,Braze,Customer Engagement Platform,$600M,"2,000",New York,NY,https://braze.com,https://www.braze.com/company/careers,Bill Magnuson,2011,Public,BRZE,IPO
+1050,Amplitude,Digital Analytics Platform,$300M,750,San Francisco,CA,https://amplitude.com,https://amplitude.com/careers,Spenser Skates,2012,Public,AMPL,IPO
+1100,Sprinklr,Unified CXM Platform,$730M,"3,700",New York,NY,https://sprinklr.com,https://www.sprinklr.com/careers/,Trac Pham,2009,Public,CXM,IPO
+1150,JFrog,DevOps & Software Supply Chain,$400M,"1,400",Sunnyvale,CA,https://jfrog.com,https://jfrog.com/jobs/,Shlomi Ben Haim,2008,Public,FROG,IPO
+1200,Five9,Cloud Contact Center,$1.0B,"3,000",San Ramon,CA,https://five9.com,https://www.five9.com/about/careers,Mike Burkland,2001,Public,FIVN,IPO
+1250,Freshworks,"Business Software (CRM, ITSM)",$720M,"5,800",San Mateo,CA,https://freshworks.com,https://www.freshworks.com/company/careers/,Dennis Woodside,2010,Public,FRSH,IPO
+1300,Bentley Systems,Infrastructure Engineering Software,$1.3B,"5,200",Exton,PA,https://bentley.com,https://www.bentley.com/careers/,Nicholas Cumins,1984,Public,BSY,IPO
+1350,Nutanix,Hybrid Cloud Infrastructure,$2.2B,"7,800",San Jose,CA,https://nutanix.com,https://www.nutanix.com/company/careers,Rajiv Ramaswami,2009,Public,NTNX,IPO
+1400,Relativity (kCura),Legal Tech & eDiscovery,$500M+,"2,000",Chicago,IL,https://relativity.com,https://www.relativity.com/company/careers/,Mike Gamson,2001,Private,N/A,"Private Equity (Silver Lake, $3.6B valuation)"
+1450,Kong Inc.,API Gateway & Service Mesh,$150M+,700,San Francisco,CA,https://konghq.com,https://konghq.com/careers,Augusto Marietti,2009,Private,N/A,"Series D ($225M raised, $1.4B valuation)"
+1500,Airtable,Low-code Database Platform,$300M+,"1,000",San Francisco,CA,https://airtable.com,https://airtable.com/careers,Howie Liu,2012,Private,N/A,"Series F ($1.4B raised, $11B valuation)"
+1550,Gong.io,Revenue Intelligence,$300M+,"1,500",San Francisco,CA,https://gong.io,https://www.gong.io/company/careers/,Amit Bendov,2015,Private,N/A,"Series E ($584M raised, $7.25B valuation)"
+1600,Celonis,Process Mining & AI,$500M+,"3,500",Munich/New York,NY,https://celonis.com,https://www.celonis.com/careers/,Alex Rinke,2011,Private,N/A,"Series D ($1B raised, $13B valuation)"
+1650,Sardine,Fraud & Compliance AI,$50M+,200,San Francisco,CA,https://sardine.ai,https://www.sardine.ai/careers,Soups Ranjan,2020,Private,N/A,Series C ($75M raised)
+1700,Hex,Data Workspace & Analytics,$50M+,200,San Francisco,CA,https://hex.tech,https://hex.tech/careers,Barry McCardel,2019,Private,N/A,Series C ($52M raised)
+1750,Fly.io,Edge App Platform,$50M+,100,Chicago,IL,https://fly.io,https://fly.io/jobs/,Kurt Mackey,2017,Private,N/A,Series C ($86M raised)
+1800,Buildkite,CI/CD Platform,$50M+,200,San Francisco,CA,https://buildkite.com,https://buildkite.com/careers,Keith Pitt,2013,Private,N/A,Series B ($81M raised)
+1850,Rudderstack,Customer Data Platform,$30M+,150,San Francisco,CA,https://rudderstack.com,https://www.rudderstack.com/careers/,Soumyadeb Mitra,2019,Private,N/A,Series B ($56M raised)
+1900,Railway,Cloud Dev Platform,$30M+,50,San Francisco,CA,https://railway.app,https://railway.app/careers,Jake Cooper,2020,Private,N/A,Series B ($37M raised)
+1950,Tinybird,Real-time Data Analytics API,$20M+,100,San Francisco,CA,https://tinybird.co,https://www.tinybird.co/about#careers,Jorge Gomez Sancha,2019,Private,N/A,Series B ($42M raised)
+2000,Val Town,Social Coding Platform,$10M+,20,Brooklyn,NY,https://val.town,https://val.town/careers,Steve Krouse,2022,Private,N/A,Series A ($25M raised)

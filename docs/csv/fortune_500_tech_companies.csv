@@ -1,0 +1,96 @@
+Fortune_Rank,Company,Industry,Revenue,Employees,HQ_City,HQ_State,Website,Careers_URL,CEO,Founded,Public_Private,Ticker,Funding_Info
+1,Amazon,Internet Services & Cloud Computing,$716.9B,"1,600,000",Seattle,WA,https://amazon.com,https://www.amazon.jobs,Andrew Jassy,1994,Public,AMZN,IPO
+4,Apple,Consumer Electronics & Software,$416.2B,"164,000",Cupertino,CA,https://apple.com,https://jobs.apple.com,Timothy Cook,1976,Public,AAPL,IPO
+5,Alphabet (Google),Internet Services & AI,$402.8B,"183,300",Mountain View,CA,https://abc.xyz,https://careers.google.com,Sundar Pichai,1998,Public,GOOGL,IPO
+11,Microsoft,Computer Software & Cloud,$293.8B,"228,000",Redmond,WA,https://microsoft.com,https://careers.microsoft.com,Satya Nadella,1975,Public,MSFT,IPO
+17,Meta Platforms,Social Media & AI,$189.5B,"74,100",Menlo Park,CA,https://meta.com,https://www.metacareers.com,Mark Zuckerberg,2004,Public,META,IPO
+20,Nvidia,Semiconductors & AI,$187.1B,"36,000",Santa Clara,CA,https://nvidia.com,https://www.nvidia.com/en-us/about-nvidia/careers/,Jensen Huang,1993,Public,NVDA,IPO
+22,JPMorgan Chase,Financial Services (Tech-heavy),$167.2B,"317,200",New York,NY,https://jpmorganchase.com,https://careers.jpmorgan.com,James Dimon,2000,Public,JPM,IPO
+27,Verizon,Telecommunications & Tech,$137.5B,"99,600",New York,NY,https://verizon.com,https://mycareer.verizon.com,Hans Vestberg,2000,Public,VZ,IPO
+32,AT&T,Telecommunications & Tech,$124.5B,"141,000",Dallas,TX,https://att.com,https://www.att.jobs,John Stankey,1983,Public,T,IPO
+33,Comcast,Telecommunications & Media Tech,$123.3B,"182,000",Philadelphia,PA,https://comcast.com,https://jobs.comcast.com,Brian Roberts,1963,Public,CMCSA,IPO
+38,Dell Technologies,Computers & IT Infrastructure,$104.1B,"108,000",Round Rock,TX,https://delltechnologies.com,https://jobs.dell.com,Michael Dell,1984,Public,DELL,IPO
+40,Tesla,Electric Vehicles & AI/Software,$95.6B,"125,700",Austin,TX,https://tesla.com,https://www.tesla.com/careers,Elon Musk,2003,Public,TSLA,IPO
+62,IBM,IT Services & AI,$65.4B,"284,500",Armonk,NY,https://ibm.com,https://www.ibm.com/careers,Arvind Krishna,1911,Public,IBM,IPO
+71,Oracle,Enterprise Software & Cloud,$61B,"159,000",Austin,TX,https://oracle.com,https://www.oracle.com/careers/,Safra Catz,1977,Public,ORCL,IPO
+72,TD Synnex,IT Distribution,$61B,"25,800",Fremont,CA,https://tdsynnex.com,https://www.tdsynnex.com/us/en/about/careers/,Patrick Zammit,1980,Public,SNX,IPO
+74,Broadcom,Semiconductors & Software,$59.9B,"37,000",Palo Alto,CA,https://broadcom.com,https://www.broadcom.com/company/careers,Hock Tan,1961,Public,AVGO,IPO
+80,Cisco Systems,Networking & Security,$57.7B,"90,400",San Jose,CA,https://cisco.com,https://jobs.cisco.com,Charles Robbins,1984,Public,CSCO,IPO
+83,HP Inc.,Computers & Printing,$55.3B,"58,000",Palo Alto,CA,https://hp.com,https://jobs.hp.com,Enrique Lores,1939,Public,HPQ,IPO
+84,Charter Communications,Cable & Internet,$55.1B,"94,500",Stamford,CT,https://charter.com,https://jobs.spectrum.com,Christopher Winfrey,1993,Public,CHTR,IPO
+87,Intel,Semiconductors,$53.4B,"108,900",Santa Clara,CA,https://intel.com,https://jobs.intel.com,Lip-Bu Tan,1968,Public,INTC,IPO
+90,Ingram Micro,IT Distribution,$51B,"26,100",Irvine,CA,https://ingrammicro.com,https://corp.ingrammicro.com/careers,Paul Bay,1979,Private,N/A,Private Equity (Platinum Equity)
+92,Uber Technologies,Ride-hailing & Delivery Tech,$49.6B,"31,100",San Francisco,CA,https://uber.com,https://www.uber.com/us/en/careers/,Dara Khosrowshahi,2009,Public,UBER,IPO
+101,Qualcomm,Semiconductors & Wireless,$44.3B,"49,000",San Diego,CA,https://qualcomm.com,https://careers.qualcomm.com,Cristiano Amon,1985,Public,QCOM,IPO
+105,Netflix,Streaming & Entertainment Tech,$43.4B,"14,000",Los Gatos,CA,https://netflix.com,https://jobs.netflix.com,Ted Sarandos,1997,Public,NFLX,IPO
+113,Honeywell,Industrial Tech & Software,$40.7B,"102,000",Charlotte,NC,https://honeywell.com,https://careers.honeywell.com,Vimal Kapur,1906,Public,HON,IPO
+114,Salesforce,Cloud CRM Software,$40.3B,"76,500",San Francisco,CA,https://salesforce.com,https://careers.salesforce.com,Marc Benioff,1999,Public,CRM,IPO
+115,Visa,Financial Technology,$40B,"31,600",San Francisco,CA,https://visa.com,https://usa.visa.com/careers.html,Ryan McInerney,1958,Public,V,IPO
+125,Micron Technology,Semiconductors & Memory,$37.4B,"48,000",Boise,ID,https://micron.com,https://www.micron.com/careers,Sanjay Mehrotra,1978,Public,MU,IPO
+129,Hewlett Packard Enterprise,IT Infrastructure & Cloud,$34.3B,"61,000",Spring,TX,https://hpe.com,https://careers.hpe.com,Antonio Neri,2015,Public,HPE,IPO
+131,Coupang,E-commerce Tech,$33.7B,"95,000",Seattle,WA,https://aboutcoupang.com,https://www.coupang.jobs,Bom Kim,2010,Public,CPNG,IPO
+134,PayPal,Digital Payments,$32.9B,"24,400",San Jose,CA,https://paypal.com,https://careers.pypl.com,Alex Chriss,1998,Public,PYPL,IPO
+135,Advanced Micro Devices (AMD),Semiconductors & AI,$32B,"28,000",Santa Clara,CA,https://amd.com,https://www.amd.com/en/corporate/careers.html,Lisa Su,1969,Public,AMD,IPO
+139,Mastercard,Financial Technology,$31.5B,"35,300",Purchase,NY,https://mastercard.com,https://careers.mastercard.com,Michael Miebach,1966,Public,MA,IPO
+143,Jabil,Electronics Manufacturing,$29.8B,"138,000",St. Petersburg,FL,https://jabil.com,https://www.jabil.com/about/careers.html,Michael Dastoor,1966,Public,JBL,IPO
+147,Arrow Electronics,IT & Electronics Distribution,$29.4B,"21,500",Centennial,CO,https://arrow.com,https://www.arrow.com/company/careers,Sean Kerins,1935,Public,ARW,IPO
+150,Capital One,Financial Tech / Banking,$28.9B,"52,600",McLean,VA,https://capitalone.com,https://www.capitalonecareers.com,Richard Fairbank,1994,Public,COF,IPO
+152,Applied Materials,Semiconductor Equipment,$28.4B,"35,700",Santa Clara,CA,https://appliedmaterials.com,https://www.appliedmaterials.com/careers,Gary Dickerson,1967,Public,AMAT,IPO
+166,Booking Holdings,Online Travel Tech,$26B,"24,200",Norwalk,CT,https://bookingholdings.com,https://careers.bookingholdings.com,Glenn Fogel,1996,Public,BKNG,IPO
+183,Block (Square),Fintech & Payments,$24B,"11,400",Oakland,CA,https://block.xyz,https://block.xyz/careers,Jack Dorsey,2009,Public,XYZ,IPO
+184,Adobe,Creative & Document Software,$23.8B,"30,700",San Jose,CA,https://adobe.com,https://careers.adobe.com,Shantanu Narayen,1982,Public,ADBE,IPO
+193,Avnet,Electronics Distribution,$22.5B,"15,500",Phoenix,AZ,https://avnet.com,https://careers.avnet.com,Philip Gallagher,1921,Public,AVT,IPO
+197,CDW,IT Solutions & Services,$22.1B,"15,100",Vernon Hills,IL,https://cdw.com,https://www.cdw.com/content/cdw/en/careers.html,Christine Leahy,1984,Public,CDW,IPO
+207,Fiserv,Financial Technology,$21.2B,"38,000",Milwaukee,WI,https://fiserv.com,https://careers.fiserv.com,Michael Lyons,1984,Public,FI,IPO
+208,Super Micro Computer,Server & Storage Systems,$21.1B,"5,700",San Jose,CA,https://supermicro.com,https://www.supermicro.com/en/about/careers,Charles Liang,1993,Public,SMCI,IPO
+209,Amphenol,Electronic Connectors & Networking,$21B,"125,000",Wallingford,CT,https://amphenol.com,https://www.amphenol.com/careers,Adam Norwitt,1932,Public,APH,IPO
+210,Automatic Data Processing (ADP),HR & Payroll Software,$20.9B,"64,000",Roseland,NJ,https://adp.com,https://jobs.adp.com,Maria Black,1949,Public,ADP,IPO
+211,Cognizant,IT Services & Consulting,$20.9B,"336,800",Teaneck,NJ,https://cognizant.com,https://careers.cognizant.com,Ravi Kumar S,1994,Public,CTSH,IPO
+219,Lam Research,Semiconductor Equipment,$19.6B,"17,400",Fremont,CA,https://lamresearch.com,https://careers.lamresearch.com,Timothy Archer,1980,Public,LRCX,IPO
+220,Intuit,"Financial Software (TurboTax, QuickBooks)",$19.4B,"24,200",Mountain View,CA,https://intuit.com,https://www.intuit.com/careers/,Sasan Goodarzi,1983,Public,INTU,IPO
+250,Accenture,IT Consulting & Services,$17.7B,"799,000",New York,NY,https://accenture.com,https://www.accenture.com/us-en/careers,Julie Sweet,1989,Public,ACN,IPO
+260,Texas Instruments,Semiconductors,$17.1B,"34,000",Dallas,TX,https://ti.com,https://careers.ti.com,Haviv Ilan,1951,Public,TXN,IPO
+265,ServiceNow,Enterprise Cloud Software,$16.8B,"24,500",Santa Clara,CA,https://servicenow.com,https://www.servicenow.com/careers.html,Bill McDermott,2003,Public,NOW,IPO
+270,T-Mobile US,Telecommunications & Tech,$80.1B,"71,000",Bellevue,WA,https://t-mobile.com,https://www.t-mobile.com/careers,Mike Sievert,1994,Public,TMUS,IPO
+278,Airbnb,Travel Platform Tech,$11.1B,"6,900",San Francisco,CA,https://airbnb.com,https://careers.airbnb.com,Brian Chesky,2008,Public,ABNB,IPO
+285,eBay,E-commerce Platform,$10.3B,"11,800",San Jose,CA,https://ebay.com,https://careers.ebayinc.com,Jamie Iannone,1995,Public,EBAY,IPO
+290,KLA Corporation,Semiconductor Equipment,$11.2B,"15,500",Milpitas,CA,https://kla.com,https://www.kla.com/careers,Richard Wallace,1997,Public,KLAC,IPO
+300,Workday,Enterprise HR & Finance Software,$8.5B,"18,800",Pleasanton,CA,https://workday.com,https://www.workday.com/en-us/company/careers.html,Carl Eschenbach,2005,Public,WDAY,IPO
+305,Palo Alto Networks,Cybersecurity,$8.4B,"15,500",Santa Clara,CA,https://paloaltonetworks.com,https://jobs.paloaltonetworks.com,Nikesh Arora,2005,Public,PANW,IPO
+310,Synopsys,EDA & Semiconductor IP Software,$6.8B,"21,000",Mountain View,CA,https://synopsys.com,https://www.synopsys.com/careers.html,Sassine Ghazi,1986,Public,SNPS,IPO
+315,Cadence Design Systems,EDA Software,$4.6B,"12,300",San Jose,CA,https://cadence.com,https://www.cadence.com/en_US/home/company/careers.html,Anirudh Devgan,1988,Public,CDNS,IPO
+320,Fortinet,Cybersecurity,$5.9B,"14,300",Sunnyvale,CA,https://fortinet.com,https://www.fortinet.com/corporate/careers,Ken Xie,2000,Public,FTNT,IPO
+325,Arista Networks,Cloud Networking,$7.0B,"4,200",Santa Clara,CA,https://arista.com,https://www.arista.com/en/careers,Jayshree Ullal,2004,Public,ANET,IPO
+330,CrowdStrike,Cybersecurity & AI,$3.9B,"10,000",Austin,TX,https://crowdstrike.com,https://www.crowdstrike.com/about/careers/,George Kurtz,2011,Public,CRWD,IPO
+335,Snowflake,Cloud Data Platform,$3.4B,"7,000",Bozeman,MT,https://snowflake.com,https://careers.snowflake.com,Sridhar Ramaswamy,2012,Public,SNOW,IPO
+340,DoorDash,Delivery Platform Tech,$9.6B,"19,600",San Francisco,CA,https://doordash.com,https://careers.doordash.com,Tony Xu,2013,Public,DASH,IPO
+345,Snap Inc.,Social Media & AR Tech,$5.4B,"5,300",Santa Monica,CA,https://snap.com,https://careers.snap.com,Evan Spiegel,2011,Public,SNAP,IPO
+350,Datadog,Cloud Monitoring & Analytics,$2.7B,"7,200",New York,NY,https://datadoghq.com,https://careers.datadoghq.com,Olivier Pomel,2010,Public,DDOG,IPO
+360,Roper Technologies,Diversified Software,$6.9B,"18,700",Sarasota,FL,https://rfroper.com,https://www.rfroper.com/careers,Neil Hunn,1981,Public,ROP,IPO
+370,Twilio,Cloud Communications APIs,$4.4B,"5,400",San Francisco,CA,https://twilio.com,https://www.twilio.com/en-us/company/jobs,Khozema Shipchandler,2008,Public,TWLO,IPO
+375,Spotify Technology,Music Streaming Tech,$16.0B,"9,000",New York,NY,https://spotify.com,https://www.lifeatspotify.com,Daniel Ek,2006,Public,SPOT,IPO
+380,Lyft,Ride-hailing Tech,$5.8B,"4,600",San Francisco,CA,https://lyft.com,https://www.lyft.com/careers,David Risher,2012,Public,LYFT,IPO
+385,Atlassian,"Collaboration Software (Jira, Confluence)",$4.8B,"12,700",Sydney/San Francisco,CA,https://atlassian.com,https://www.atlassian.com/company/careers,Mike Cannon-Brookes,2002,Public,TEAM,IPO
+390,Pinterest,Visual Discovery Platform,$3.6B,"5,400",San Francisco,CA,https://pinterest.com,https://www.pinterestcareers.com,Bill Ready,2009,Public,PINS,IPO
+395,MongoDB,Database Software,$2.0B,"5,200",New York,NY,https://mongodb.com,https://www.mongodb.com/company/careers,Dev Ittycheria,2007,Public,MDB,IPO
+400,Palantir Technologies,Data Analytics & AI,$2.9B,"3,800",Denver,CO,https://palantir.com,https://www.palantir.com/careers/,Alex Karp,2003,Public,PLTR,IPO
+405,Elastic,Search & Observability Software,$1.3B,"4,200",Mountain View,CA,https://elastic.co,https://www.elastic.co/careers,Ash Kulkarni,2012,Public,ESTC,IPO
+410,Okta,Identity & Access Management,$2.6B,"6,000",San Francisco,CA,https://okta.com,https://www.okta.com/company/careers/,Todd McKinnon,2009,Public,OKTA,IPO
+415,Zscaler,Cloud Security,$2.3B,"8,000",San Jose,CA,https://zscaler.com,https://www.zscaler.com/careers,Jay Chaudhry,2007,Public,ZS,IPO
+420,Veeva Systems,Life Sciences Cloud Software,$2.7B,"7,200",Pleasanton,CA,https://veeva.com,https://careers.veeva.com,Peter Gassner,2007,Public,VEEV,IPO
+425,Cloudflare,Web Infrastructure & Security,$1.7B,"4,200",San Francisco,CA,https://cloudflare.com,https://www.cloudflare.com/careers/,Matthew Prince,2009,Public,NET,IPO
+430,HubSpot,CRM & Marketing Software,$2.6B,"8,200",Cambridge,MA,https://hubspot.com,https://www.hubspot.com/careers,Yamini Rangan,2006,Public,HUBS,IPO
+435,Splunk (Cisco),Data Analytics & SIEM,Acquired by Cisco,"8,000",San Francisco,CA,https://splunk.com,https://www.splunk.com/en_us/careers.html,Gary Steele,2003,Public (Acquired),N/A,Acquired by Cisco ($28B)
+440,Stripe,Payments Infrastructure,$17B+,"8,000",San Francisco,CA,https://stripe.com,https://stripe.com/jobs,Patrick Collison,2010,Private,N/A,"Series I ($6.5B, $50B+ valuation)"
+445,Databricks,Data & AI Platform,$2.4B+,"7,000",San Francisco,CA,https://databricks.com,https://www.databricks.com/company/careers,Ali Ghodsi,2013,Private,N/A,"Series J ($10B raised, $62B valuation)"
+450,Epic Games,Gaming & Unreal Engine,$5.7B,"4,500",Cary,NC,https://epicgames.com,https://www.epicgames.com/site/en-US/careers,Tim Sweeney,1991,Private,N/A,"Private ($5.4B raised, $31.5B valuation)"
+455,Reddit,Social Media Platform,$1.3B,"2,100",San Francisco,CA,https://reddit.com,https://www.redditinc.com/careers,Steve Huffman,2005,Public,RDDT,IPO
+460,Figma (Adobe),Design Software,$700M+,"1,500",San Francisco,CA,https://figma.com,https://www.figma.com/careers/,Dylan Field,2012,Private,N/A,"Series E ($600M, $12.5B valuation)"
+465,Confluent,Data Streaming Platform,$941M,"3,700",Mountain View,CA,https://confluent.io,https://www.confluent.io/careers/,Jay Kreps,2014,Public,CFLT,IPO
+470,GitLab,DevSecOps Platform,$742M,"2,200",San Francisco,CA,https://gitlab.com,https://about.gitlab.com/jobs/,Sid Sijbrandij,2011,Public,GTLB,IPO
+475,HashiCorp (IBM),Infrastructure Automation,$614M,"2,500",San Francisco,CA,https://hashicorp.com,https://www.hashicorp.com/en/careers,David McJannet,2012,Public (Acquired),N/A,Acquired by IBM ($6.4B)
+480,Notion,Productivity & Workspace Software,$500M+,800,San Francisco,CA,https://notion.so,https://www.notion.so/careers,Ivan Zhao,2013,Private,N/A,"Series C ($343M, $10B valuation)"
+485,Akamai Technologies,CDN & Cloud Security,$3.9B,"9,700",Cambridge,MA,https://akamai.com,https://www.akamai.com/careers,F. Thomson Leighton,1998,Public,AKAM,IPO
+490,NetApp,Cloud Data Services & Storage,$6.5B,"12,000",San Jose,CA,https://netapp.com,https://www.netapp.com/company/careers/,George Kurian,1992,Public,NTAP,IPO
+495,Dynatrace,Software Intelligence & Observability,$1.6B,"5,000",Waltham,MA,https://dynatrace.com,https://careers.dynatrace.com,Rick McConnell,2005,Public,DT,IPO
+500,Unity Technologies,Game Engine & Real-time 3D,$1.7B,"4,200",San Francisco,CA,https://unity.com,https://careers.unity.com,Matthew Bromberg,2004,Public,U,IPO

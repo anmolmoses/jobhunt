@@ -1,22 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, asc, count } from "drizzle-orm";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const sortBy = searchParams.get("sortBy") || "fortuneRank";
+    const sortDir = searchParams.get("sortDir") || "asc";
+
+    const orderFn = sortDir === "desc" ? desc : asc;
+    const col = sortBy === "companyName" ? schema.companyPortals.companyName
+      : sortBy === "fortuneRank" ? schema.companyPortals.fortuneRank
+      : sortBy === "employees" ? schema.companyPortals.employees
+      : sortBy === "revenue" ? schema.companyPortals.revenue
+      : sortBy === "lastScannedAt" ? schema.companyPortals.lastScannedAt
+      : schema.companyPortals.fortuneRank;
+
     const portals = db
       .select()
       .from(schema.companyPortals)
-      .orderBy(desc(schema.companyPortals.createdAt))
+      .orderBy(orderFn(col))
       .all();
 
-    return NextResponse.json(
-      portals.map((p) => ({
+    // Get stats
+    const [statsResult] = db
+      .select({ total: count() })
+      .from(schema.companyPortals)
+      .all();
+
+    const enabledCount = db
+      .select({ total: count() })
+      .from(schema.companyPortals)
+      .where(eq(schema.companyPortals.enabled, true))
+      .get();
+
+    return NextResponse.json({
+      portals: portals.map((p) => ({
         ...p,
         titleFilters: JSON.parse(p.titleFilters || "[]"),
         titleExclusions: JSON.parse(p.titleExclusions || "[]"),
-      }))
-    );
+      })),
+      stats: {
+        total: statsResult?.total ?? 0,
+        enabled: enabledCount?.total ?? 0,
+      },
+    });
   } catch (error) {
     console.error("Get portals error:", error);
     return NextResponse.json({ error: "Failed to get portals" }, { status: 500 });

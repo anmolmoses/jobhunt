@@ -76,6 +76,10 @@ COPY --from=builder /app/public ./public
 # Create data & upload directories (will be mounted as volumes)
 RUN mkdir -p data uploads && chown -R nextjs:nodejs data uploads
 
+# Copy CSV seed data for company directory import
+COPY --from=builder /app/docs/csv ./docs/csv
+RUN chown -R nextjs:nodejs docs
+
 # Push schema on startup to ensure DB is up to date.
 # We need drizzle-kit + config + schema for this.
 COPY --from=builder /app/node_modules ./node_modules

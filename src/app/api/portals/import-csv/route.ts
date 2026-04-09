@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, schema } from "@/db";
 import { eq, count } from "drizzle-orm";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync } from "fs";
 import { join } from "path";
 
 interface CsvRow {
@@ -83,6 +83,7 @@ function detectCategory(industry: string, revenue: string): string {
 function parseCsvFile(filePath: string): CsvRow[] {
   const content = readFileSync(filePath, "utf-8");
   const lines = content.split("\n").filter((l) => l.trim());
+  // Skip header
   const rows: CsvRow[] = [];
 
   for (let i = 1; i < lines.length; i++) {
@@ -103,7 +104,7 @@ function parseCsvFile(filePath: string): CsvRow[] {
       founded: fields[10],
       publicPrivate: fields[11],
       ticker: fields[12],
-      fundingInfo: fields.slice(13).join(",").replace(/^"|"$/g, ""),
+      fundingInfo: fields.slice(13).join(",").replace(/^"|"$/g, ""), // Funding info may contain commas
     });
   }
 
@@ -115,14 +116,6 @@ export async function POST() {
     const csvDir = join(process.cwd(), "docs", "csv");
     const file1 = join(csvDir, "fortune_500_tech_companies.csv");
     const file2 = join(csvDir, "fortune_501_2000_tech_companies.csv");
-
-    // Check if CSV files exist
-    if (!existsSync(file1) || !existsSync(file2)) {
-      return NextResponse.json(
-        { error: "CSV files not found in docs/csv/" },
-        { status: 404 }
-      );
-    }
 
     const rows1 = parseCsvFile(file1);
     const rows2 = parseCsvFile(file2);
@@ -142,6 +135,7 @@ export async function POST() {
       const scanMethod = detectScanMethod(row.careersUrl);
       const category = detectCategory(row.industry, row.revenue);
 
+      // Check if already exists
       const existing = db
         .select()
         .from(schema.companyPortals)
@@ -149,27 +143,30 @@ export async function POST() {
         .get();
 
       if (existing) {
-        // Update with directory data
-        db.update(schema.companyPortals)
-          .set({
-            fortuneRank: row.fortuneRank || null,
-            industry: row.industry || null,
-            revenue: row.revenue || null,
-            employees: row.employees || null,
-            hqCity: row.hqCity || null,
-            hqState: row.hqState || null,
-            website: row.website || null,
-            ceo: row.ceo || null,
-            founded: row.founded || null,
-            publicPrivate: row.publicPrivate || null,
-            ticker: row.ticker !== "N/A" ? row.ticker : null,
-            fundingInfo: row.fundingInfo || null,
-            category,
-            updatedAt: new Date().toISOString(),
-          })
-          .where(eq(schema.companyPortals.id, existing.id))
-          .run();
-        updated++;
+        // Update with directory data if not already set
+        if (!existing.fortuneRank) {
+          db.update(schema.companyPortals)
+            .set({
+              fortuneRank: row.fortuneRank || null,
+              industry: row.industry || null,
+              revenue: row.revenue || null,
+              employees: row.employees || null,
+              hqCity: row.hqCity || null,
+              hqState: row.hqState || null,
+              website: row.website || null,
+              ceo: row.ceo || null,
+              founded: row.founded || null,
+              publicPrivate: row.publicPrivate || null,
+              ticker: row.ticker !== "N/A" ? row.ticker : null,
+              fundingInfo: row.fundingInfo || null,
+              category: category,
+            })
+            .where(eq(schema.companyPortals.id, existing.id))
+            .run();
+          updated++;
+        } else {
+          skipped++;
+        }
         continue;
       }
 
@@ -198,12 +195,12 @@ export async function POST() {
       added++;
     }
 
-    // Create import notification
+    // Create a notification for the import
     db.insert(schema.notifications)
       .values({
         type: "system",
-        title: "Fortune Tech Companies Imported",
-        message: `Imported ${added} new companies, updated ${updated} existing, skipped ${skipped}. Total: ${allRows.length} companies.`,
+        title: "Company Directory Imported",
+        message: `Imported ${added} companies, updated ${updated}, skipped ${skipped} duplicates from Fortune CSV data.`,
         metadata: JSON.stringify({ added, updated, skipped, total: allRows.length }),
       })
       .run();
@@ -216,7 +213,30 @@ export async function POST() {
       total: allRows.length,
     });
   } catch (error) {
-    console.error("Seed portals error:", error);
-    return NextResponse.json({ error: "Failed to seed portals" }, { status: 500 });
+    console.error("CSV import error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to import CSV" },
+      { status: 500 }
+    );
+  }
+}
+
+// GET: Check if import is needed (no portals with fortuneRank exist)
+export async function GET() {
+  try {
+    const [result] = db
+      .select({ total: count() })
+      .from(schema.companyPortals)
+      .all();
+
+    const total = result?.total ?? 0;
+
+    return NextResponse.json({
+      needsImport: total < 50, // If fewer than 50 portals, suggest import
+      currentCount: total,
+    });
+  } catch (error) {
+    console.error("Check import error:", error);
+    return NextResponse.json({ error: "Failed to check" }, { status: 500 });
   }
 }

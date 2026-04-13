@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ import {
   AlertCircle, Plus, ExternalLink, TrendingUp, Video, Phone,
   FileText, Users, Briefcase, Target, ArrowRight, Search,
   ArrowUpDown, ArrowUp, ArrowDown, LayoutGrid, Table2, Download,
+  Check, ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 import { JobDetailModal } from "@/components/jobs/job-detail-modal";
@@ -112,6 +113,79 @@ const INTERVIEW_TYPES = [
   { value: "other", label: "Other" },
 ];
 
+function StatusPicker({
+  itemId,
+  currentStatus,
+  onStatusChange,
+  size = "default",
+}: {
+  itemId: number;
+  currentStatus: string;
+  onStatusChange: (id: number, status: string) => void;
+  size?: "default" | "sm";
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const variantMap: Record<string, string> = {
+    saved: "border-transparent bg-secondary text-secondary-foreground",
+    applied: "border-transparent bg-primary text-primary-foreground",
+    interviewing: "border-transparent bg-foreground/5 text-muted-foreground",
+    offered: "border-transparent bg-foreground/10 text-foreground",
+    rejected: "border-transparent bg-destructive text-destructive-foreground",
+  };
+
+  const label = PIPELINE_COLUMNS.find((c) => c.key === currentStatus)?.label || currentStatus;
+  const textSize = size === "sm" ? "text-[9px]" : "text-[10px]";
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(!open);
+        }}
+        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${textSize} font-semibold transition-all hover:ring-2 hover:ring-ring hover:ring-offset-1 cursor-pointer ${variantMap[currentStatus] || variantMap.saved}`}
+      >
+        {label}
+        <ChevronDown className={size === "sm" ? "h-2 w-2" : "h-2.5 w-2.5"} />
+      </button>
+      {open && (
+        <div
+          className="absolute z-50 top-full mt-1 left-0 min-w-[150px] rounded-lg border bg-popover p-1 shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {PIPELINE_COLUMNS.map((col) => (
+            <button
+              key={col.key}
+              onClick={() => {
+                if (col.key !== currentStatus) onStatusChange(itemId, col.key);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-colors hover:bg-accent ${
+                col.key === currentStatus ? "bg-accent/50 font-medium" : ""
+              }`}
+            >
+              <div className={`h-2 w-2 rounded-full shrink-0 ${col.color}`} />
+              <span>{col.label}</span>
+              {col.key === currentStatus && <Check className="h-3 w-3 ml-auto opacity-70" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TrackerPage() {
   const { toast } = useToast();
   const [data, setData] = useState<TrackerData | null>(null);
@@ -206,18 +280,6 @@ export default function TrackerPage() {
     (tablePage - 1) * TABLE_PAGE_SIZE,
     tablePage * TABLE_PAGE_SIZE
   );
-
-  const statusBadge = (status: string) => {
-    const map: Record<string, { label: string; variant: "default" | "secondary" | "warning" | "success" | "destructive" }> = {
-      saved: { label: "Saved", variant: "secondary" },
-      applied: { label: "Applied", variant: "default" },
-      interviewing: { label: "Interviewing", variant: "warning" },
-      offered: { label: "Offered", variant: "success" },
-      rejected: { label: "Rejected", variant: "destructive" },
-    };
-    const cfg = map[status] || { label: status, variant: "secondary" as const };
-    return <Badge variant={cfg.variant} className="text-[10px] capitalize">{cfg.label}</Badge>;
-  };
 
   const openJobDetail = (item: SavedJob) => {
     setSelectedJob({
@@ -540,31 +602,12 @@ export default function TrackerPage() {
                         )}
 
                         {/* Quick actions */}
-                        <div className="flex gap-1 pt-1" onClick={(e) => e.stopPropagation()}>
-                          {col.key === "saved" && (
-                            <Button size="sm" className="h-6 text-[10px] px-2" onClick={() => updateJobStatus(item.id, "applied")}>
-                              Mark Applied
+                        <div className="flex items-center gap-1 pt-1" onClick={(e) => e.stopPropagation()}>
+                          <StatusPicker itemId={item.id} currentStatus={item.status} onStatusChange={updateJobStatus} size="sm" />
+                          {(col.key === "applied" || col.key === "interviewing") && (
+                            <Button size="sm" variant="ghost" className="h-6 text-[10px] px-1.5" onClick={() => setInterviewModal(item.id)}>
+                              <Plus className="h-2.5 w-2.5" /> Interview
                             </Button>
-                          )}
-                          {col.key === "applied" && (
-                            <>
-                              <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => setInterviewModal(item.id)}>
-                                <Plus className="h-2.5 w-2.5" /> Interview
-                              </Button>
-                              <Button size="sm" variant="ghost" className="h-6 text-[10px] px-1.5" onClick={() => updateJobStatus(item.id, "rejected")}>
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                          {col.key === "interviewing" && (
-                            <>
-                              <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => setInterviewModal(item.id)}>
-                                <Plus className="h-2.5 w-2.5" /> Round
-                              </Button>
-                              <Button size="sm" className="h-6 text-[10px] px-2" onClick={() => updateJobStatus(item.id, "offered")}>
-                                Offer
-                              </Button>
-                            </>
                           )}
                           {item.job.applyUrl && (
                             <a href={item.job.applyUrl} target="_blank" rel="noopener noreferrer">
@@ -706,7 +749,9 @@ export default function TrackerPage() {
                       className="border-b last:border-0 transition-colors hover:bg-muted/30 cursor-pointer"
                       onClick={() => openJobDetail(item)}
                     >
-                      <td className="px-3 py-2.5">{statusBadge(item.status)}</td>
+                      <td className="px-3 py-2.5">
+                        <StatusPicker itemId={item.id} currentStatus={item.status} onStatusChange={updateJobStatus} />
+                      </td>
                       <td className="px-3 py-2.5">
                         <div className="flex items-center gap-2">
                           {item.job.companyLogo ? (
@@ -753,19 +798,9 @@ export default function TrackerPage() {
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
-                          {item.status === "saved" && (
-                            <Button variant="ghost" size="sm" className="h-7 text-[10px] px-2" onClick={() => updateJobStatus(item.id, "applied")}>
-                              <Target className="h-3 w-3" /> Apply
-                            </Button>
-                          )}
-                          {item.status === "applied" && (
+                          {(item.status === "applied" || item.status === "interviewing") && (
                             <Button variant="ghost" size="sm" className="h-7 text-[10px] px-2" onClick={() => setInterviewModal(item.id)}>
                               <Plus className="h-3 w-3" /> Interview
-                            </Button>
-                          )}
-                          {item.status === "interviewing" && (
-                            <Button variant="ghost" size="sm" className="h-7 text-[10px] px-2" onClick={() => updateJobStatus(item.id, "offered")}>
-                              <TrendingUp className="h-3 w-3" /> Offer
                             </Button>
                           )}
                           {item.job.applyUrl && (

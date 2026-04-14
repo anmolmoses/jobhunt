@@ -29,6 +29,8 @@ interface SavedJob {
   appliedAt: string | null;
   followUpDate: string | null;
   nextStep: string | null;
+  expectedSalary: number | null;
+  expectedSalaryNotes: string | null;
   createdAt: string;
   updatedAt: string;
   job: {
@@ -598,6 +600,12 @@ export default function TrackerPage() {
                         {item.followUpDate && (
                           <p className={`text-[10px] flex items-center gap-1 ${item.followUpDate <= new Date().toISOString().split("T")[0] ? "text-foreground font-medium" : "text-muted-foreground"}`}>
                             <Clock className="h-2.5 w-2.5" />Follow up: {item.followUpDate}
+                          </p>
+                        )}
+
+                        {item.expectedSalary && (
+                          <p className="text-[10px] text-primary font-medium flex items-center gap-1">
+                            <TrendingUp className="h-2.5 w-2.5" />Ask: {item.job.salary?.includes("₹") || !item.job.salary ? "₹" : "$"}{item.expectedSalary >= 100000 ? `${(item.expectedSalary / 100000).toFixed(1)}L` : item.expectedSalary.toLocaleString()}
                           </p>
                         )}
 

@@ -120,6 +120,8 @@ export const savedJobs = sqliteTable("saved_jobs", {
   appliedAt: text("applied_at"),
   followUpDate: text("follow_up_date"),
   nextStep: text("next_step"), // e.g. "Send thank you email", "Prepare for technical round"
+  expectedSalary: real("expected_salary"), // What user expects to ask from this company
+  expectedSalaryNotes: text("expected_salary_notes"), // e.g. "Based on glassdoor, market rate is 25L"
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),
@@ -382,7 +384,7 @@ export const gamificationProfile = sqliteTable("gamification_profile", {
   lastActiveDate: text("last_active_date"), // YYYY-MM-DD
   streakProtectionUsed: integer("streak_protection_used", { mode: "boolean" }).notNull().default(false),
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
-  dailyGoals: text("daily_goals").notNull().default('{"applications":3,"searches":2,"outreach":1}'), // JSON
+  dailyGoals: text("daily_goals").notNull().default('{"applications":3,"searches":2,"outreach":1,"jobsSaved":2}'), // JSON
   streakConfig: text("streak_config").notNull().default('{"countToward":["apply","search","outreach","interview","resume"],"protectionDays":1}'), // JSON
   createdAt: text("created_at")
     .notNull()
@@ -624,6 +626,78 @@ export const linkedinScrapeLogs = sqliteTable("linkedin_scrape_logs", {
   level: text("level").notNull().default("info"), // "info", "warn", "error", "success"
   message: text("message").notNull(),
   metadata: text("metadata"), // JSON: optional extra data
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// User salary profile — current compensation details
+export const userSalaryProfile = sqliteTable("user_salary_profile", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  // Current compensation
+  currentCtc: real("current_ctc"), // Total CTC (annual)
+  currentInHand: real("current_in_hand"), // Monthly in-hand
+  currentBase: real("current_base"), // Annual base salary
+  currentBonus: real("current_bonus"), // Annual bonus
+  currentStocks: real("current_stocks"), // Annual stock/ESOP value
+  currentOther: real("current_other"), // Other benefits (annual)
+  currency: text("currency").notNull().default("INR"),
+  // Breakdown JSON: { basicSalary, hra, specialAllowance, pf, gratuity, insurance, etc. }
+  salaryBreakdown: text("salary_breakdown").notNull().default("{}"),
+  // User profile
+  currentTitle: text("current_title"),
+  currentCompany: text("current_company"),
+  totalExperience: real("total_experience"), // years
+  relevantExperience: real("relevant_experience"), // years in current domain
+  location: text("location"),
+  skills: text("skills").notNull().default("[]"), // JSON array
+  noticePeriod: text("notice_period"), // "immediate", "15 days", "30 days", "60 days", "90 days"
+  expectedMinCtc: real("expected_min_ctc"),
+  expectedMaxCtc: real("expected_max_ctc"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// Salary market data — scraped benchmarks from multiple sources
+export const salaryMarketData = sqliteTable("salary_market_data", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  jobTitle: text("job_title").notNull(),
+  normalizedTitle: text("normalized_title").notNull(),
+  company: text("company"), // null = aggregate market data
+  normalizedCompany: text("normalized_company"),
+  location: text("location"),
+  experienceMin: real("experience_min"), // years
+  experienceMax: real("experience_max"),
+  // Salary ranges
+  salaryMin: real("salary_min"),
+  salaryMax: real("salary_max"),
+  salaryMedian: real("salary_median"),
+  salaryP25: real("salary_p25"), // 25th percentile
+  salaryP75: real("salary_p75"), // 75th percentile
+  salaryP90: real("salary_p90"), // 90th percentile
+  currency: text("currency").notNull().default("INR"),
+  // Breakdown if available
+  baseSalaryMin: real("base_salary_min"),
+  baseSalaryMax: real("base_salary_max"),
+  bonusMin: real("bonus_min"),
+  bonusMax: real("bonus_max"),
+  stocksMin: real("stocks_min"),
+  stocksMax: real("stocks_max"),
+  // Source metadata
+  source: text("source").notNull(), // "ambitionbox", "glassdoor", "levels_fyi", "payscale", "linkedin", "firecrawl_search"
+  sourceUrl: text("source_url"),
+  sampleSize: integer("sample_size"), // number of data points
+  confidence: text("confidence"), // "high", "medium", "low"
+  rawData: text("raw_data"), // JSON of full scraped data
+  // Cache control
+  scrapedAt: text("scraped_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  expiresAt: text("expires_at"), // when to re-scrape
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),

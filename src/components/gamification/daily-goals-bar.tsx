@@ -11,6 +11,7 @@ const GOAL_LABELS: Record<string, string> = {
   applications: "Applications",
   searches: "Searches",
   outreach: "Outreach",
+  jobsSaved: "Jobs Saved",
 };
 
 export function DailyGoalsBar({ goals, met, className }: DailyGoalsBarProps) {

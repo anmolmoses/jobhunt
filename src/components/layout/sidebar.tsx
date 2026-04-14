@@ -19,6 +19,7 @@ import {
   BookOpen,
   Building2,
   Fingerprint,
+  CircleDollarSign,
 } from "lucide-react";
 
 const navItems = [
@@ -33,6 +34,7 @@ const navItems = [
   { href: "/networking", label: "Networking", icon: Users },
   { href: "/portals", label: "Company Portals", icon: Building2 },
   { href: "/linkedin-scrape", label: "LinkedIn Scraper", icon: Fingerprint },
+  { href: "/salary-intelligence", label: "Salary Intelligence", icon: CircleDollarSign },
   { href: "/interview-prep", label: "Interview Prep", icon: BookOpen },
   { href: "/gamification", label: "Progress", icon: Trophy },
   { href: "/settings", label: "Settings", icon: Settings },

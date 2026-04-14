@@ -205,10 +205,11 @@ async function runScrapeSession(runId: number, liAt: string): Promise<void> {
 
       try {
         await page.goto(section.url, {
-          waitUntil: "networkidle2",
-          timeout: 45000,
+          waitUntil: "domcontentloaded",
+          timeout: 30000,
         });
-        await randomDelay(3000, 5000);
+        // Wait for JS to render content (LinkedIn is a SPA)
+        await randomDelay(5000, 8000);
 
         // Check for redirect (auth issues)
         const landedUrl = page.url();

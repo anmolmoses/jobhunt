@@ -16,7 +16,7 @@ interface GamificationConfig {
   level: number;
   levelTitle: string;
   currentStreak: number;
-  dailyGoalsConfig: { applications: number; searches: number; outreach: number };
+  dailyGoalsConfig: { applications: number; searches: number; outreach: number; jobsSaved: number };
   streakConfig: { countToward: string[]; protectionDays: number };
 }
 
@@ -40,7 +40,7 @@ export function GamificationSettings() {
     level: 1,
     levelTitle: "Fresh Graduate",
     currentStreak: 0,
-    dailyGoalsConfig: { applications: 3, searches: 2, outreach: 1 },
+    dailyGoalsConfig: { applications: 3, searches: 2, outreach: 1, jobsSaved: 2 },
     streakConfig: { countToward: ["apply", "search", "outreach", "interview", "resume"], protectionDays: 1 },
   });
 
@@ -48,6 +48,10 @@ export function GamificationSettings() {
     fetch("/api/gamification")
       .then((r) => r.json())
       .then((data: GamificationConfig) => {
+        // Ensure jobsSaved exists for backward compatibility
+        if (data.dailyGoalsConfig && data.dailyGoalsConfig.jobsSaved == null) {
+          data.dailyGoalsConfig.jobsSaved = 2;
+        }
         setConfig(data);
         setLoading(false);
       })
@@ -158,7 +162,7 @@ export function GamificationSettings() {
         {/* Daily Goals */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">Daily Goals</Label>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-4">
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Applications per day</Label>
               <Input
@@ -200,6 +204,21 @@ export function GamificationSettings() {
                   setConfig((prev) => ({
                     ...prev,
                     dailyGoalsConfig: { ...prev.dailyGoalsConfig, outreach: parseInt(e.target.value) || 0 },
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Jobs saved per day</Label>
+              <Input
+                type="number"
+                min={0}
+                max={50}
+                value={config.dailyGoalsConfig.jobsSaved}
+                onChange={(e) =>
+                  setConfig((prev) => ({
+                    ...prev,
+                    dailyGoalsConfig: { ...prev.dailyGoalsConfig, jobsSaved: parseInt(e.target.value) || 0 },
                   }))
                 }
               />

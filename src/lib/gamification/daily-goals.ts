@@ -4,6 +4,7 @@ interface DailyLogCounts {
   applications: number;
   searches: number;
   outreach: number;
+  jobsSaved: number;
 }
 
 export interface DailyGoalProgress {
@@ -29,6 +30,10 @@ export function checkDailyGoals(
   if (goals.outreach > 0) {
     progress.outreach = { target: goals.outreach, current: counts.outreach };
     if (counts.outreach < goals.outreach) allMet = false;
+  }
+  if (goals.jobsSaved > 0) {
+    progress.jobsSaved = { target: goals.jobsSaved, current: counts.jobsSaved };
+    if (counts.jobsSaved < goals.jobsSaved) allMet = false;
   }
 
   // If no goals are configured, don't count as "met"

@@ -129,7 +129,8 @@ export function recordAction(
 
   const today = getToday();
   const streakConfig: StreakConfig = JSON.parse(profile.streakConfig);
-  const dailyGoals: DailyGoals = JSON.parse(profile.dailyGoals);
+  const parsedGoals = JSON.parse(profile.dailyGoals);
+  const dailyGoals: DailyGoals = { applications: 0, searches: 0, outreach: 0, jobsSaved: 0, ...parsedGoals };
   const previousLevel = profile.level;
 
   // 1. Update streak
@@ -193,7 +194,7 @@ export function recordAction(
   let dailyGoalsMet = false;
   let totalXpAwarded = xpAwarded;
   const goalResult = checkDailyGoals(
-    { applications: updatedLog.applications, searches: updatedLog.searches, outreach: updatedLog.outreach },
+    { applications: updatedLog.applications, searches: updatedLog.searches, outreach: updatedLog.outreach, jobsSaved: updatedLog.jobsSaved },
     dailyGoals
   );
   if (goalResult.met && !updatedLog.goalsMetBonus) {
@@ -318,7 +319,8 @@ export function recordAction(
 export function getStats(): GamificationStats {
   const profile = getOrCreateProfile();
   const today = getToday();
-  const dailyGoals: DailyGoals = JSON.parse(profile.dailyGoals);
+  const parsedStatsGoals = JSON.parse(profile.dailyGoals);
+  const dailyGoals: DailyGoals = { applications: 0, searches: 0, outreach: 0, jobsSaved: 0, ...parsedStatsGoals };
   const streakConfig: StreakConfig = JSON.parse(profile.streakConfig);
 
   const todayLog = db.select().from(schema.gamificationDailyLog).where(eq(schema.gamificationDailyLog.date, today)).get();
@@ -328,6 +330,7 @@ export function getStats(): GamificationStats {
       applications: todayLog?.applications ?? 0,
       searches: todayLog?.searches ?? 0,
       outreach: todayLog?.outreach ?? 0,
+      jobsSaved: todayLog?.jobsSaved ?? 0,
     },
     dailyGoals
   );

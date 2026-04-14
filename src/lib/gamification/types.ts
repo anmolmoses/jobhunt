@@ -13,6 +13,7 @@ export interface DailyGoals {
   applications: number;
   searches: number;
   outreach: number;
+  jobsSaved: number;
 }
 
 export interface StreakConfig {

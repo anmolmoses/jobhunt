@@ -14,6 +14,8 @@ export async function GET() {
 
     const pipeline = savedJobs.map((row) => ({
       ...row.saved_jobs,
+      expectedSalary: row.saved_jobs.expectedSalary ?? null,
+      expectedSalaryNotes: row.saved_jobs.expectedSalaryNotes ?? null,
       job: {
         ...row.job_results,
         tags: JSON.parse(row.job_results.tags || "[]"),

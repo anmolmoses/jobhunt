@@ -703,6 +703,25 @@ export const salaryMarketData = sqliteTable("salary_market_data", {
     .default(sql`(datetime('now'))`),
 });
 
+// Compose Outreach — standalone cold-message drafts (not tied to a saved job by default)
+export const composeDrafts = sqliteTable("compose_drafts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  sourceType: text("source_type").notNull(), // "url" | "text" | "image"
+  sourceUrl: text("source_url"),
+  jobTitle: text("job_title"),
+  company: text("company"),
+  fitSummary: text("fit_summary"),
+  referralMessage: text("referral_message"),
+  recruiterMessage: text("recruiter_message"),
+  savedJobId: integer("saved_job_id").references(() => savedJobs.id, { onDelete: "set null" }),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 export const gamificationAchievements = sqliteTable("gamification_achievements", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   achievementId: text("achievement_id").notNull().unique(),

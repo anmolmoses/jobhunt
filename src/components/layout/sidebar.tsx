@@ -20,6 +20,7 @@ import {
   Building2,
   Fingerprint,
   CircleDollarSign,
+  Sparkles,
 } from "lucide-react";
 
 const navItems = [
@@ -32,6 +33,7 @@ const navItems = [
   { href: "/map", label: "Job Map", icon: Map },
   { href: "/saved", label: "Saved Jobs", icon: Bookmark },
   { href: "/networking", label: "Networking", icon: Users },
+  { href: "/compose", label: "Compose Outreach", icon: Sparkles },
   { href: "/portals", label: "Company Portals", icon: Building2 },
   { href: "/linkedin-scrape", label: "LinkedIn Scraper", icon: Fingerprint },
   { href: "/salary-intelligence", label: "Salary Intelligence", icon: CircleDollarSign },

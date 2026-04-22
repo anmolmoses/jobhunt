@@ -16,6 +16,39 @@ services:
       - default
       - firecrawl_backend
 
+  lab:
+    build:
+      context: .
+      dockerfile: Dockerfile.lab
+    container_name: jobhunt-lab
+    restart: unless-stopped
+    ports:
+      - "${LAB_PORT:-3100}:3100"
+    volumes:
+      # Bind-mount source so edits on host are live inside the container
+      - ./src:/app/src
+      - ./lab/src:/app/lab/src
+      # Share the SQLite DB + uploads with the main app.
+      # Mounted at both paths because src/db/index.ts resolves DB_PATH from
+      # process.cwd(), which is /app/lab when lab runs via `npm run dev --prefix lab`.
+      - jobhunt-data:/app/data
+      - jobhunt-data:/app/lab/data
+      - jobhunt-uploads:/app/uploads
+      - jobhunt-uploads:/app/lab/uploads
+      # Mount host Claude Code credentials so `claude -p` reuses host auth
+      # (Comment out if you'd rather authenticate inside the container)
+      - ${HOME}/.claude:/root/.claude
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      # The lab talks to Firecrawl over the shared backend network; the URL
+      # stored in SQLite settings needs to be reachable from inside Docker.
+      # The main jobhunt container already resolves this the same way.
+    networks:
+      - default
+      - firecrawl_backend
+
 volumes:
   jobhunt-data:
   jobhunt-uploads:

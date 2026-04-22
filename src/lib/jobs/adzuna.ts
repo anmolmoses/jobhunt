@@ -38,9 +38,22 @@ export class AdzunaProvider implements JobSearchProvider {
       if (params.employmentType.includes("contract")) searchParams.set("contract", "1");
     }
 
-    const res = await fetch(
-      `https://api.adzuna.com/v1/api/jobs/${country}/search/${page}?${searchParams.toString()}`
-    );
+    const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/${page}?${searchParams.toString()}`;
+
+    // Adzuna occasionally throws transient network errors (e.g. undici
+    // "fetch failed"). One retry after 500ms on thrown network errors only —
+    // HTTP 4xx/5xx still surface immediately.
+    let res: Response;
+    try {
+      res = await fetch(url);
+    } catch (err) {
+      await new Promise((r) => setTimeout(r, 500));
+      try {
+        res = await fetch(url);
+      } catch {
+        throw err;
+      }
+    }
 
     if (!res.ok) {
       throw new Error(`Adzuna API error: ${res.status}`);

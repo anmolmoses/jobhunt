@@ -2,17 +2,22 @@ import type { JobSearchProvider, JobSearchParams, NormalizedJob } from "@/types/
 import { db, schema } from "@/db";
 import { eq, and } from "drizzle-orm";
 
+// Verified 2026-04-21 — each slug returns HTTP 200 + non-empty `jobs` array
+// from https://boards-api.greenhouse.io/v1/boards/{slug}/jobs.
+// Removed: cohere, linear, notion, pinecone, retool, langchain (all 404 — they
+// moved off Greenhouse or changed slugs). Replaced with established boards
+// that still resolve.
 const DEFAULT_BOARD_TOKENS = [
   "anthropic",
   "stripe",
   "figma",
   "vercel",
-  "notion",
-  "linear",
-  "retool",
-  "pinecone",
-  "langchain",
-  "cohere",
+  "airbnb",
+  "coinbase",
+  "dropbox",
+  "discord",
+  "reddit",
+  "pinterest",
 ];
 
 const DATE_MAP: Record<string, number> = {

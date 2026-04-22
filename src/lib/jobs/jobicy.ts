@@ -14,8 +14,19 @@ export class JobicyProvider implements JobSearchProvider {
         tag: params.query,
       });
 
-      if (params.location) {
-        searchParams.set("geo", params.location.toLowerCase());
+      // Jobicy's `geo` param requires a predefined country slug (e.g. "usa",
+      // "apac"). Passing "remote" or an unknown value yields HTTP 400:
+      // `Invalid 'geo' value`. Only pass it when it plausibly looks like a
+      // country slug — otherwise rely on post-filtering (Jobicy listings are
+      // already all-remote).
+      const KNOWN_GEO_SLUGS = new Set([
+        "usa", "united-states", "apac", "emea", "uk", "united-kingdom",
+        "canada", "europe", "latam", "australia", "germany", "france",
+        "india", "anywhere",
+      ]);
+      const loc = (params.location || "").toLowerCase().trim();
+      if (loc && loc !== "remote" && KNOWN_GEO_SLUGS.has(loc)) {
+        searchParams.set("geo", loc);
       }
 
       const res = await fetch(

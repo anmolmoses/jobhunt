@@ -17,13 +17,22 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
+    "ignoreDeprecations": "6.0",
     "plugins": [
       {
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
       "@/*": [
+        "./src/*",
+        "../src/*"
+      ],
+      "@app/*": [
+        "../src/*"
+      ],
+      "@lab/*": [
         "./src/*"
       ]
     }
@@ -32,12 +41,12 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
+    "../src/**/*.ts",
+    "../src/**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "docker",
-    "lab"
+    "node_modules"
   ]
 }

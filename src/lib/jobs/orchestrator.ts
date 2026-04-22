@@ -280,7 +280,8 @@ function dataRichness(job: NormalizedJob): number {
   return score;
 }
 
-// Engineering role keywords — job titles must contain at least one to be relevant
+// Engineering role keywords — used as a positive signal in relevance scoring
+// (previously a hard filter; relaxed to let more provider payloads survive).
 const ENGINEERING_ROLE_KEYWORDS = [
   "engineer", "developer", "architect", "sde", "swe",
   "backend", "back end", "back-end", "frontend", "front end", "front-end",
@@ -294,10 +295,16 @@ const ENGINEERING_ROLE_KEYWORDS = [
 
 /**
  * Filter out jobs that don't match the user's profile.
- * - Remove jobs whose title has zero engineering role keywords
- * - Remove jobs with exclude keywords in title
- * - Remove jobs clearly below experience level (intern/fresher for senior, etc.)
- * - Remove jobs outside preferred locations (unless remote)
+ * - Respect user-specified exclude keywords (always applied to title)
+ * - Drop intern/junior listings only for senior+ users
+ * - Remove jobs outside preferred locations, but ONLY for non-remote jobs
+ *   with a known location string (remote always passes, unknown passes)
+ *
+ * NOTE: the former hard "engineering-title" gate has been removed. It was
+ * wiping entire provider payloads (e.g. RemoteOK) whose titles passed tag
+ * matching but not the strict title keyword set. The engineering signal is
+ * now folded into `scoreJobs` as a small positive score bump so non-matches
+ * sink naturally instead of being hard-dropped.
  */
 function filterJobs(jobs: NormalizedJob[], prefs: UserPreferences): NormalizedJob[] {
   const excludeKeywords = prefs.excludeKeywords.map((k) => k.toLowerCase());
@@ -320,47 +327,38 @@ function filterJobs(jobs: NormalizedJob[], prefs: UserPreferences): NormalizedJo
 
   return jobs.filter((job) => {
     const titleLower = job.title.toLowerCase();
-    const descLower = (job.description || "").toLowerCase().slice(0, 500);
 
-    // Hard filter: title must contain at least one engineering role keyword
-    const isEngineeringRole = ENGINEERING_ROLE_KEYWORDS.some((kw) => titleLower.includes(kw));
-    if (!isEngineeringRole) return false;
-
-    // Filter by exclude keywords (check title + start of description)
+    // User-specified exclude keywords — always respect these on the title.
     for (const kw of excludeKeywords) {
       if (titleLower.includes(kw)) return false;
-      // Only filter description for strong exclude words
-      if (kw.length > 3 && descLower.includes(kw) && !titleLower.includes("senior") && !titleLower.includes("lead")) {
-        // Don't exclude if the title is clearly senior
-      }
     }
 
-    // Filter by experience level mismatch
-    // If user is senior (4), filter out intern (0), entry (1), junior (1)
+    // Experience-level gate: only drop intern/junior listings for senior+ users.
     if (userSeniority >= 4) {
       const juniorSignals = ["intern", "internship", "trainee", "fresher", "junior", "entry level", "graduate", "entry-level"];
       if (juniorSignals.some((s) => titleLower.includes(s))) return false;
-    }
-    if (userSeniority >= 3) {
-      const internSignals = ["intern", "internship", "trainee", "fresher"];
-      if (internSignals.some((s) => titleLower.includes(s))) return false;
+
+      // Years-of-experience mismatches from title, e.g. "(1-3 years)"
+      const yoeMatch = titleLower.match(/\((\d+)[-–](\d+)\s*(?:yr|year)/);
+      if (yoeMatch) {
+        const maxYoe = parseInt(yoeMatch[2]);
+        if (maxYoe <= 3) return false;
+      }
     }
 
-    // Filter out years-of-experience mismatches from title
-    // e.g. "(1-3 years)" when user is senior
-    const yoeMatch = titleLower.match(/\((\d+)[-–](\d+)\s*(?:yr|year)/);
-    if (yoeMatch && userSeniority >= 4) {
-      const maxYoe = parseInt(yoeMatch[2]);
-      if (maxYoe <= 3) return false; // Filter "1-3 years" for senior engineers
-    }
-
-    // Hard filter: location must match preferred locations or be remote
+    // Location: remote jobs always pass. For non-remote jobs with a known
+    // location, require a match against the user's preferred locations.
     if (hasLocationPrefs) {
       const jobLocLower = (job.location || "").toLowerCase();
-      const isRemote = job.isRemote || jobLocLower.includes("remote") || jobLocLower.includes("worldwide") || jobLocLower.includes("anywhere");
-      const locationMatch = locationTerms.some((t) => jobLocLower.includes(t));
-      // Allow remote, location match, or empty location (unknown)
-      if (!isRemote && !locationMatch && jobLocLower.length > 0) return false;
+      const isRemote =
+        job.isRemote ||
+        jobLocLower.includes("remote") ||
+        jobLocLower.includes("worldwide") ||
+        jobLocLower.includes("anywhere");
+      if (!isRemote && jobLocLower.length > 0) {
+        const locationMatch = locationTerms.some((t) => jobLocLower.includes(t));
+        if (!locationMatch) return false;
+      }
     }
 
     return true;
@@ -441,6 +439,13 @@ function scoreJobs(jobs: NormalizedJob[], params: JobSearchParams, prefs?: UserP
     // === 6. SALARY FIT (5%) ===
     if (params.salaryMin && job.salaryMin) {
       score += job.salaryMin >= params.salaryMin ? 0.05 : 0.02;
+    }
+
+    // === 7. ENGINEERING-TITLE SIGNAL (+5% if title hits a known eng keyword) ===
+    // Softer replacement for the old hard-gate. Non-eng titles still rank,
+    // but eng titles float up.
+    if (ENGINEERING_ROLE_KEYWORDS.some((kw) => titleLower.includes(kw))) {
+      score += 0.05;
     }
 
     return { ...job, relevanceScore: Math.round(score * 100) / 100 };

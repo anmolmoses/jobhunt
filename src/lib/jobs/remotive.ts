@@ -39,7 +39,15 @@ export class RemotiveProvider implements JobSearchProvider {
     }
 
     // Client-side location filtering
-    if (params.location) {
+    // Remotive jobs are always remote, so when the user is asking for remote
+    // we short-circuit and keep everything. The API-side field
+    // `candidate_required_location` contains values like "Worldwide",
+    // "USA Only", "Anywhere" — not the literal string "remote" — so the
+    // previous filter wiped nearly every result when location="remote".
+    const wantsRemote =
+      params.remote === true ||
+      (params.location || "").toLowerCase().trim() === "remote";
+    if (params.location && !wantsRemote) {
       const locLower = params.location.toLowerCase();
       const locTerms = locLower.split(/[\s,]+/).filter((t) => t.length > 2);
       jobs = jobs.filter((job) => {

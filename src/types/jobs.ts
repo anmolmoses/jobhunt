@@ -10,7 +10,17 @@ export interface JobSearchParams {
   resultsPerPage?: number;
 }
 
-export type JobProviderName = "jsearch" | "adzuna" | "remotive" | "linkedin" | "linkedin-auth" | "indeed" | "remoteok" | "jobicy" | "hackernews" | "firecrawl" | "greenhouse" | "manual";
+export type JobProviderName = "jsearch" | "adzuna" | "remotive" | "linkedin" | "linkedin-auth" | "indeed" | "remoteok" | "jobicy" | "hackernews" | "firecrawl" | "greenhouse" | "manual"
+  // Experimental providers (sandbox only — not in production orchestrator yet)
+  | "claude-code"
+  | "linkedin-public"
+  | "ycombinator"
+  | "lever"
+  | "ashby"
+  | "workday"
+  | "otta"
+  | "himalayas"
+  | "weworkremotely";
 
 export interface NormalizedJob {
   externalId: string;

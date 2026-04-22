@@ -50,3 +50,25 @@ export async function getAIProvider(): Promise<"claude" | "openai"> {
   return (provider as "claude" | "openai") || "claude";
 }
 
+/**
+ * Set a setting value (unencrypted) in the database.
+ * For encrypted values (API keys), use the encrypted settings flow elsewhere.
+ */
+export function setSetting(key: string, value: string): void {
+  const existing = db
+    .select()
+    .from(schema.settings)
+    .where(eq(schema.settings.key, key))
+    .get();
+  if (existing) {
+    db.update(schema.settings)
+      .set({ value, updatedAt: new Date().toISOString() })
+      .where(eq(schema.settings.key, key))
+      .run();
+  } else {
+    db.insert(schema.settings)
+      .values({ key, value, isEncrypted: false })
+      .run();
+  }
+}
+

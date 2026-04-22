@@ -12,6 +12,15 @@ data
 uploads
 drizzle
 
+# Lab host artifacts — must not leak into image. Volumes/bind-mounts create
+# fresh mount points at these paths inside the container.
+lab/node_modules
+lab/.next
+lab/data
+lab/uploads
+lab/.env
+lab/.env.local
+
 # Docker services
 docker
 

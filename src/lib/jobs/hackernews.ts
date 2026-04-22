@@ -1,9 +1,5 @@
 import type { JobSearchProvider, JobSearchParams, NormalizedJob } from "@/types/jobs";
 
-const DATE_MAP: Record<string, number> = {
-  "1d": 1, "3d": 3, "7d": 7, "14d": 14, "30d": 30,
-};
-
 /**
  * Scrapes HackerNews "Who's Hiring" monthly threads via Algolia API.
  * These are high-quality tech jobs posted by hiring managers directly.
@@ -13,10 +9,10 @@ export class HackerNewsProvider implements JobSearchProvider {
 
   async search(params: JobSearchParams): Promise<NormalizedJob[]> {
     try {
-      // Determine how far back to look based on datePosted
-      const maxAgeDays = DATE_MAP[params.datePosted || "30d"] || 30;
-
-      // Find "Who is hiring?" threads, get a few to check recency
+      // Find "Who is hiring?" threads — always want the freshest monthly
+      // thread, regardless of user's `datePosted` window. The monthly thread
+      // is typically 1–4 weeks old, so applying `datePosted<=7d` here used
+      // to drop every thread and return zero jobs.
       const searchRes = await fetch(
         `https://hn.algolia.com/api/v1/search?query=%22who%20is%20hiring%22&tags=story&hitsPerPage=3`
       );
@@ -26,17 +22,11 @@ export class HackerNewsProvider implements JobSearchProvider {
       const hits = searchData.hits || [];
       if (hits.length === 0) return [];
 
-      // Filter threads to only those within the date range
-      const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
-      const recentHits = hits.filter((h: { created_at_i?: number }) =>
-        h.created_at_i && h.created_at_i * 1000 >= cutoff
-      );
-      if (recentHits.length === 0) return [];
-
-      // Use the most recent thread
-      const threadId = recentHits[0].objectID;
-      const threadTimestamp = recentHits[0].created_at_i
-        ? new Date(recentHits[0].created_at_i * 1000).toISOString()
+      // Use the most recent thread (hits are already sorted by relevance;
+      // the top "Ask HN: Who is hiring?" result is the current/most-recent).
+      const threadId = hits[0].objectID;
+      const threadTimestamp = hits[0].created_at_i
+        ? new Date(hits[0].created_at_i * 1000).toISOString()
         : new Date().toISOString();
 
       // Get the comments (job postings) from the thread
